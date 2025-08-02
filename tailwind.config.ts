@@ -52,6 +52,12 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// 책마루 커스텀 색상 추가
+				'book-brown': 'hsl(var(--book-brown))',
+				'warm-orange': 'hsl(var(--warm-orange))',
+				'soft-green': 'hsl(var(--soft-green))',
+				'cream': 'hsl(var(--cream))',
+				'text-brown': 'hsl(var(--text-brown))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',

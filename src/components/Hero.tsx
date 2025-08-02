@@ -12,12 +12,12 @@ const Hero = () => {
               <h1 className="text-4xl md:text-6xl font-bold text-foreground leading-tight">
                 이웃과 함께하는
                 <br />
-                <span className="text-primary">책마루</span>
+                <span className="text-primary">이웃책방</span>
               </h1>
-              <p className="text-xl text-muted-foreground leading-relaxed">
-                집 앞 작은 책꽂이로 시작되는<br />
-                따뜻한 독서 공유 문화
-              </p>
+               <p className="text-xl text-muted-foreground leading-relaxed">
+                이웃책방 전용 책꽂이로 시작되는<br />
+                하루 100원의 따뜻한 책 나눔 문화
+               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -42,7 +42,7 @@ const Hero = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">89</div>
-                <div className="text-sm text-muted-foreground">책마루</div>
+                <div className="text-sm text-muted-foreground">이웃책방</div>
               </div>
             </div>
           </div>
@@ -51,7 +51,7 @@ const Hero = () => {
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <img 
                 src={heroImage} 
-                alt="책마루 - 이웃과 함께하는 책 공유" 
+                alt="이웃책방 - 이웃과 함께하는 책 공유" 
                 className="w-full h-auto object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>

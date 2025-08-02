@@ -5,7 +5,7 @@ const HowItWorks = () => {
     {
       icon: Plus,
       title: "책 등록하기",
-      description: "다 읽은 책을 앱에 등록하고 집 앞 책마루에 놓아두세요.",
+      description: "다 읽은 책을 앱에 등록하고 이웃책방 전용 책꽂이에 사진 인증과 함께 놓아두세요.",
       step: "01"
     },
     {
@@ -17,13 +17,13 @@ const HowItWorks = () => {
     {
       icon: HandHeart,
       title: "대여 요청",
-      description: "앱을 통해 대여를 요청하고 약속 시간을 정해보세요.",
+      description: "원하는 책에 대여를 요청하면 책 주인이 수락하고 책꽂이에 준비해둡니다.",
       step: "03"
     },
     {
       icon: BookOpen,
       title: "책 즐기기",
-      description: "정해진 시간에 조용히 다녀가서 책을 읽고 반납해주세요.",
+      description: "하루 100원으로 책을 읽고, 반납 시 사진 인증으로 요금 청구가 중단됩니다.",
       step: "04"
     }
   ];

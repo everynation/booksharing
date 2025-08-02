@@ -11,7 +11,7 @@ const CTA = () => {
           </h2>
           <p className="text-xl text-white/90 mb-8 leading-relaxed">
             가까운 이웃과 함께 만들어가는 따뜻한 독서 문화,<br />
-            이웃책방에서 새로운 책과 새로운 이웃을 만나보세요.
+            이웃책꽂이에서 새로운 책과 새로운 이웃을 만나보세요.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

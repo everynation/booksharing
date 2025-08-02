@@ -5,7 +5,7 @@ const HowItWorks = () => {
     {
       icon: Plus,
       title: "책 등록하기",
-      description: "다 읽은 책을 앱에 등록하고 이웃책방 전용 책꽂이에 사진 인증과 함께 놓아두세요.",
+      description: "다 읽은 책을 앱에 등록해보세요.",
       step: "01"
     },
     {

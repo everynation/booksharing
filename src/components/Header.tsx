@@ -7,7 +7,7 @@ const Header = () => {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
           <Book className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold text-foreground">이웃책방</span>
+          <span className="text-2xl font-bold text-foreground">이웃책꽂이</span>
         </div>
         
         <nav className="hidden md:flex items-center gap-6">

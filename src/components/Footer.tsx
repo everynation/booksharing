@@ -8,7 +8,7 @@ const Footer = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Book className="h-8 w-8 text-warm-orange" />
-              <span className="text-2xl font-bold">이웃책방</span>
+              <span className="text-2xl font-bold">이웃책꽂이</span>
             </div>
             <p className="text-white/80 leading-relaxed">
               이웃과 책을 나누는<br />
@@ -53,7 +53,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-white/20 pt-8 text-center text-white/60">
-          <p>&copy; 2024 이웃책방. 모든 권리 보유.</p>
+          <p>&copy; 2024 이웃책꽂이. 모든 권리 보유.</p>
         </div>
       </div>
     </footer>

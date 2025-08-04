@@ -151,16 +151,19 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-accent/20 p-4">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-3 mb-8">
+        <button 
+          onClick={() => navigate("/")}
+          className="flex items-center justify-center gap-3 mb-8 hover:opacity-80 transition-opacity"
+        >
           <Book className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold text-foreground">옆집책꽂이</h1>
-        </div>
+        </button>
 
         <Card className="border border-border/50 shadow-lg">
           <CardHeader className="text-center">
             <CardTitle>계정 관리</CardTitle>
             <CardDescription>
-              북셰어에 오신 것을 환영합니다
+              옆집책꽂이에 오신 것을 환영합니다
             </CardDescription>
           </CardHeader>
           <CardContent>

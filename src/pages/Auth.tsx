@@ -111,7 +111,7 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
           <Book className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold text-foreground">BookShare</h1>
+          <h1 className="text-3xl font-bold text-foreground">옆집책꽂이</h1>
         </div>
 
         <Card className="border border-border/50 shadow-lg">

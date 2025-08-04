@@ -432,7 +432,10 @@ const BookDetail = () => {
                   variant="outline"
                   size="lg"
                   className="w-full"
-                  onClick={() => navigate(`/books/${book.id}/review`)}
+                  onClick={() => {
+                    console.log("Navigating to review page:", `/books/${book.id}/review`);
+                    navigate(`/books/${book.id}/review`);
+                  }}
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
                   독후감 보기

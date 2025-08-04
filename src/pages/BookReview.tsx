@@ -27,7 +27,7 @@ interface Review {
 
 const BookReview = () => {
   const { bookId } = useParams<{ bookId: string }>();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -39,14 +39,45 @@ const BookReview = () => {
   const [rating, setRating] = useState(5);
   const [canReview, setCanReview] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  console.log("BookReview render:", { bookId, user: !!user, authLoading, loading });
 
   useEffect(() => {
-    if (!user || !bookId) return;
+    if (authLoading) return; // Wait for auth to be determined
     
-    fetchBookData();
-    fetchReviews();
-    checkReviewPermission();
-  }, [user, bookId]);
+    if (!bookId) {
+      console.error("No bookId provided");
+      setError("잘못된 책 ID입니다.");
+      setLoading(false);
+      return;
+    }
+    
+    // Set up async data loading
+    const loadData = async () => {
+      console.log("Loading data for bookId:", bookId);
+      setLoading(true);
+      setError(null);
+      
+      try {
+        await fetchBookData();
+        await fetchReviews();
+        
+        if (user) {
+          await checkReviewPermission();
+        } else {
+          setCanReview(false);
+        }
+      } catch (err) {
+        console.error("Error loading book review data:", err);
+        setError("데이터를 불러오는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [bookId, user, authLoading]);
 
   const fetchBookData = async () => {
     if (!bookId) return;
@@ -230,6 +261,25 @@ const BookReview = () => {
               <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
               <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-warm-orange/5 via-background to-soft-green/5">
+        <Header />
+        <div className="container py-8">
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">{error}</p>
+            <Button 
+              onClick={() => navigate("/books")} 
+              className="mt-4 bg-gradient-to-r from-warm-orange to-primary hover:shadow-warm"
+            >
+              책 목록으로 돌아가기
+            </Button>
           </div>
         </div>
       </div>

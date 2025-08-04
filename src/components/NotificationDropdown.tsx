@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { ChatModal } from './ChatModal';
 
 interface PendingRequest {
   id: string;
@@ -34,6 +35,12 @@ export const NotificationDropdown = () => {
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedChat, setSelectedChat] = useState<{
+    userId: string;
+    userName: string;
+    bookTitle: string;
+    transactionId: string;
+  } | null>(null);
 
   const fetchPendingRequests = async () => {
     if (!user) return;
@@ -139,6 +146,16 @@ export const NotificationDropdown = () => {
     return `${Math.floor(diffInMinutes / 1440)}일 전`;
   };
 
+  const openChat = (request: PendingRequest) => {
+    setSelectedChat({
+      userId: request.borrower_id,
+      userName: request.borrower?.display_name || '익명',
+      bookTitle: request.book?.title || '',
+      transactionId: request.id
+    });
+    setIsOpen(false); // 드롭다운 닫기
+  };
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
@@ -167,8 +184,8 @@ export const NotificationDropdown = () => {
           </div>
         ) : (
           pendingRequests.map((request, index) => (
-            <div key={request.id} className={`p-4 hover:bg-accent/30 transition-colors ${index !== pendingRequests.length - 1 ? 'border-b' : ''}`}>
-              <div className="flex items-start gap-3">
+            <div key={request.id} className={`p-4 hover:bg-accent/30 transition-colors cursor-pointer ${index !== pendingRequests.length - 1 ? 'border-b' : ''}`}>
+              <div className="flex items-start gap-3" onClick={() => openChat(request)}>
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <User className="h-5 w-5 text-primary" />
                 </div>
@@ -185,7 +202,7 @@ export const NotificationDropdown = () => {
                     <p className="text-xs text-muted-foreground">
                       {formatTimeAgo(request.created_at)}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                       <Button
                         size="sm"
                         variant="default"
@@ -214,6 +231,18 @@ export const NotificationDropdown = () => {
           ))
         )}
       </DropdownMenuContent>
+      
+      {/* 채팅 모달 */}
+      {selectedChat && (
+        <ChatModal
+          isOpen={!!selectedChat}
+          onClose={() => setSelectedChat(null)}
+          otherUserId={selectedChat.userId}
+          otherUserName={selectedChat.userName}
+          bookTitle={selectedChat.bookTitle}
+          transactionId={selectedChat.transactionId}
+        />
+      )}
     </DropdownMenu>
   );
 };

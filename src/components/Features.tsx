@@ -1,42 +1,42 @@
-import { BookOpen, MapPin, MessageCircle, Shield, Clock, Users } from "lucide-react";
+import { BookOpen, MapPin, Heart, Shield, Clock, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const Features = () => {
   const features = [
     {
       icon: BookOpen,
-      title: "간편한 책 등록",
-      description: "스마트폰으로 책 사진을 찍으면 자동으로 정보가 등록됩니다.",
+      title: "쉬운 책 등록",
+      description: "사진 한 장으로 간단하게 책을 등록하고 이웃과 공유하세요.",
       color: "text-primary"
     },
     {
       icon: MapPin,
-      title: "위치 기반 매칭",
-      description: "가까운 이웃의 책마루에서 원하는 책을 쉽게 찾을 수 있어요.",
+      title: "우리 동네 책방",
+      description: "가까운 이웃의 책꽂이에서 읽고 싶은 책을 바로 찾아보세요.",
       color: "text-soft-green"
     },
     {
-      icon: Clock,
-      title: "약속 시간 설정",
-      description: "편리한 시간에 조용히 다녀가며 책을 주고받을 수 있습니다.",
+      icon: Heart,
+      title: "따뜻한 나눔",
+      description: "대여부터 판매까지, 이웃과 함께하는 책 나눔 문화를 만들어가요.",
       color: "text-warm-orange"
     },
     {
-      icon: MessageCircle,
-      title: "독후감 공유",
-      description: "읽은 책에 대한 생각을 이웃과 나누며 소통해보세요.",
+      icon: Clock,
+      title: "간편한 거래",
+      description: "직접 만나서 간단하게 거래하고, 반납 인증으로 안전하게 마무리하세요.",
       color: "text-primary"
     },
     {
       icon: Shield,
-      title: "신뢰 기반 시스템",
-      description: "후기와 평점을 통해 안전하고 신뢰할 수 있는 거래를 만들어갑니다.",
+      title: "안전한 시스템",
+      description: "사용자 검증과 거래 내역 관리로 믿을 수 있는 책 공유 환경을 제공합니다.",
       color: "text-book-brown"
     },
     {
-      icon: Users,
-      title: "커뮤니티 형성",
-      description: "책을 통해 이웃과 연결되는 따뜻한 커뮤니티를 만들어가요.",
+      icon: Gift,
+      title: "보상 시스템",
+      description: "책 대여 수익이 원가를 넘으면 새로운 책을 보상으로 받을 수 있어요.",
       color: "text-soft-green"
     }
   ];
@@ -46,18 +46,18 @@ const Features = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            책마루가 특별한 이유
+            옆집책꽂이가 특별한 이유
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            단순한 책 공유를 넘어, 이웃과 함께 만들어가는 독서 문화입니다
+            단순한 책 대여를 넘어, 이웃과 함께 만들어가는 새로운 독서 문화입니다
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <Card key={index} className="border-0 shadow-soft hover:shadow-warm transition-all duration-300 hover:-translate-y-1 bg-card">
+            <Card key={index} className="border-0 shadow-soft hover:shadow-warm transition-all duration-300 hover:-translate-y-1 bg-card group">
               <CardContent className="p-8">
-                <div className="mb-6">
+                <div className="mb-6 transform group-hover:scale-110 transition-transform duration-300">
                   <feature.icon className={`h-12 w-12 ${feature.color}`} />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground mb-3">

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 const Header = () => {
   const { user, signOut } = useAuth();
@@ -52,6 +53,7 @@ const Header = () => {
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">책 등록</span>
           </Button>
+          {user && <NotificationDropdown />}
           <Button variant="ghost" size="sm" onClick={handleAuthClick}>
             {user ? <LogOut className="h-4 w-4" /> : <User className="h-4 w-4" />}
             <span className="hidden sm:inline">{user ? "로그아웃" : "로그인"}</span>

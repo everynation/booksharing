@@ -18,34 +18,31 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  console.log("App component rendering");
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/books" element={<Books />} />
-              <Route path="/books/:id" element={<BookDetail />} />
-              <Route path="/books/:bookId/review" element={<BookReview />} />
-              <Route path="/add-book" element={<AddBook />} />
-              <Route path="/my" element={<MyPage />} />
-              <Route path="/return-proof/:transactionId" element={<ReturnProof />} />
-              <Route path="/rental-restriction" element={<RentalRestriction />} />
-              <Route path="/rewards" element={<RewardNotification />} />
-              <Route path="/auth" element={<Auth />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-};
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/books" element={<Books />} />
+            <Route path="/books/:id" element={<BookDetail />} />
+            <Route path="/books/:bookId/review" element={<BookReview />} />
+            <Route path="/add-book" element={<AddBook />} />
+            <Route path="/my" element={<MyPage />} />
+            <Route path="/return-proof/:transactionId" element={<ReturnProof />} />
+            <Route path="/rental-restriction" element={<RentalRestriction />} />
+            <Route path="/rewards" element={<RewardNotification />} />
+            <Route path="/auth" element={<Auth />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;

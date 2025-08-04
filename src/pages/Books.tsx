@@ -1,73 +1,168 @@
-import { useState } from "react";
-import { Search, MapPin, Star, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, MapPin, Star, Clock, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 
-const Books = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+interface BookProfile {
+  display_name: string | null;
+  address: string | null;
+}
 
-  // 임시 책 데이터
-  const books = [
-    {
-      id: 1,
-      title: "미드나잇 라이브러리",
-      author: "매트 헤이그",
-      owner: "김민수",
-      distance: "0.2km",
-      rating: 4.8,
-      price: 100,
-      available: true,
-      coverImage: "/placeholder.svg",
-      description: "무한한 가능성의 도서관에서 펼쳐지는 감동적인 이야기"
-    },
-    {
-      id: 2,
-      title: "아토믹 해빗",
-      author: "제임스 클리어",
-      owner: "이지영",
-      distance: "0.5km",
-      rating: 4.9,
-      price: 100,
-      available: true,
-      coverImage: "/placeholder.svg",
-      description: "작은 습관의 힘으로 인생을 바꾸는 방법"
-    },
-    {
-      id: 3,
-      title: "데미안",
-      author: "헤르만 헤세",
-      owner: "박준호",
-      distance: "0.8km",
-      rating: 4.7,
-      price: 100,
-      available: false,
-      coverImage: "/placeholder.svg",
-      description: "성장과 자아 발견의 고전 소설"
-    },
-    {
-      id: 4,
-      title: "코스모스",
-      author: "칼 세이건",
-      owner: "정수현",
-      distance: "1.1km",
-      rating: 4.9,
-      price: 100,
-      available: true,
-      coverImage: "/placeholder.svg",
-      description: "우주와 과학에 대한 경이로운 여행"
+interface Book {
+  id: string;
+  title: string;
+  author: string;
+  isbn: string | null;
+  cover_image_url: string | null;
+  transaction_type: string;
+  price: number;
+  status: string;
+  created_at: string;
+  user_id: string;
+  profiles: BookProfile | null;
+}
+
+const Books = () => {
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<"all" | "sale" | "rental">("all");
+  const [sortBy, setSortBy] = useState<"created_at" | "price" | "title">("created_at");
+
+  useEffect(() => {
+    fetchBooks();
+  }, [transactionTypeFilter, sortBy]);
+
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      
+      let query = supabase
+        .from('books')
+        .select(`
+          *,
+          profiles:user_id (
+            display_name,
+            address
+          )
+        `)
+        .eq('status', 'available');
+
+      // Apply transaction type filter
+      if (transactionTypeFilter !== "all") {
+        query = query.eq('transaction_type', transactionTypeFilter);
+      }
+
+      // Apply sorting
+      const ascending = sortBy === "title";
+      query = query.order(sortBy, { ascending });
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching books:', error);
+        toast({
+          title: "책 목록 로딩 실패",
+          description: "책 목록을 불러올 수 없습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setBooks((data || []) as any);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "오류가 발생했습니다",
+        description: "다시 시도해 주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleBorrowRequest = async (bookId: string) => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "대여 요청을 하려면 먼저 로그인해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+
+    // Check if user is trying to borrow their own book
+    if (book.user_id === user.id) {
+      toast({
+        title: "본인 책은 대여할 수 없습니다",
+        description: "자신이 등록한 책은 대여할 수 없습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .insert({
+          book_id: bookId,
+          borrower_id: user.id,
+          owner_id: book.user_id,
+          status: 'requested',
+        });
+
+      if (error) {
+        toast({
+          title: "대여 요청 실패",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "대여 요청 완료",
+          description: "직접 만나서 거래하세요. 책 주인에게 연락하여 만날 장소와 시간을 정하세요.",
+        });
+        
+        // Update book status to rented
+        await supabase
+          .from('books')
+          .update({ status: 'rented' })
+          .eq('id', bookId);
+        
+        // Refresh books list
+        fetchBooks();
+      }
+    } catch (error) {
+      toast({
+        title: "오류가 발생했습니다",
+        description: "다시 시도해 주세요.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredBooks = books.filter(book => 
     book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     book.author.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getDefaultCoverImage = () => {
+    return "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=300&h=400&fit=crop&crop=center";
+  };
+
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-background">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
@@ -80,101 +175,135 @@ const Books = () => {
             가까운 이웃이 공유한 책들을 찾아보세요
           </p>
           
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="책 제목이나 저자를 검색하세요"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="책 제목이나 저자를 검색하세요"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </div>
         </div>
 
         {/* 필터 및 정렬 */}
-        <div className="flex gap-4 mb-6">
-          <Button variant="soft" size="sm">
-            <MapPin className="h-4 w-4" />
-            가까운 순
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Star className="h-4 w-4" />
-            평점순
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Clock className="h-4 w-4" />
-            최신순
-          </Button>
+        <div className="flex flex-wrap gap-4 mb-6">
+          <Select value={transactionTypeFilter} onValueChange={(value: "all" | "sale" | "rental") => setTransactionTypeFilter(value)}>
+            <SelectTrigger className="w-[120px]">
+              <Filter className="h-4 w-4" />
+              <SelectValue placeholder="유형" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">모든 유형</SelectItem>
+              <SelectItem value="rental">대여</SelectItem>
+              <SelectItem value="sale">판매</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortBy} onValueChange={(value: "created_at" | "price" | "title") => setSortBy(value)}>
+            <SelectTrigger className="w-[120px]">
+              <Clock className="h-4 w-4" />
+              <SelectValue placeholder="정렬" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at">최신순</SelectItem>
+              <SelectItem value="price">가격순</SelectItem>
+              <SelectItem value="title">제목순</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* 로딩 상태 */}
+        {loading && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">책 목록을 불러오는 중...</p>
+          </div>
+        )}
 
         {/* 책 목록 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBooks.map((book) => (
-            <Card key={book.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <CardHeader className="p-0">
-                <div className="aspect-[3/4] bg-muted relative">
-                  <img 
-                    src={book.coverImage} 
-                    alt={book.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {!book.available && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <Badge variant="secondary">대여중</Badge>
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredBooks.map((book) => (
+              <Card key={book.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <CardHeader className="p-0">
+                  <div className="aspect-[3/4] bg-muted relative">
+                    <img 
+                      src={book.cover_image_url || getDefaultCoverImage()} 
+                      alt={book.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = getDefaultCoverImage();
+                      }}
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Badge variant={book.transaction_type === "sale" ? "destructive" : "secondary"}>
+                        {book.transaction_type === "sale" ? "판매" : "대여"}
+                      </Badge>
                     </div>
+                    {book.status !== 'available' && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Badge variant="outline" className="bg-background">
+                          {book.status === 'rented' ? '대여중' : '판매완료'}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="p-4">
+                  <CardTitle className="text-lg mb-2 line-clamp-1">
+                    {book.title}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mb-2">{book.author}</p>
+                  {book.isbn && (
+                    <p className="text-xs text-muted-foreground mb-3">ISBN: {book.isbn}</p>
                   )}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="p-4">
-                <CardTitle className="text-lg mb-2 line-clamp-1">
-                  {book.title}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mb-2">{book.author}</p>
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {book.description}
-                </p>
+                  
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        소유자: {book.profiles?.display_name || "익명"}
+                      </span>
+                      <span className="font-semibold text-primary">
+                        {book.price.toLocaleString()}원{book.transaction_type === "rental" ? "/일" : ""}
+                      </span>
+                    </div>
+                    {book.profiles?.address && (
+                      <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>{book.profiles.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
                 
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span>{book.rating}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{book.distance}</span>
-                  </div>
-                </div>
-                
-                <div className="mt-3 pt-3 border-t">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      소유자: {book.owner}
-                    </span>
-                    <span className="font-semibold text-primary">
-                      {book.price}원/일
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-              
-              <CardFooter className="p-4 pt-0">
-                <Button 
-                  className="w-full" 
-                  variant={book.available ? "warm" : "ghost"}
-                  disabled={!book.available}
-                >
-                  {book.available ? "대여 요청" : "대여중"}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                <CardFooter className="p-4 pt-0">
+                  <Button 
+                    className="w-full" 
+                    variant={book.status === 'available' ? "warm" : "ghost"}
+                    disabled={book.status !== 'available' || book.user_id === user?.id}
+                    onClick={() => handleBorrowRequest(book.id)}
+                  >
+                    {book.status === 'available' 
+                      ? (book.user_id === user?.id ? "내 책" : `${book.transaction_type === "sale" ? "구매" : "대여"} 요청`)
+                      : (book.status === 'rented' ? '대여중' : '판매완료')
+                    }
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {filteredBooks.length === 0 && (
+        {!loading && filteredBooks.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
-              검색 결과가 없습니다. 다른 검색어를 시도해보세요.
+              {searchQuery 
+                ? "검색 결과가 없습니다. 다른 검색어를 시도해보세요."
+                : "등록된 책이 없습니다. 첫 번째 책을 등록해보세요!"
+              }
             </p>
           </div>
         )}

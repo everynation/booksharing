@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, User } from 'lucide-react';
+import { MessageCircle, Check, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -143,7 +143,7 @@ export const NotificationDropdown = () => {
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-4 w-4" />
+          <MessageCircle className="h-4 w-4" />
           {pendingRequests.length > 0 && (
             <Badge 
               variant="destructive" 
@@ -154,54 +154,59 @@ export const NotificationDropdown = () => {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80 max-h-96 overflow-y-auto" align="end">
-        <DropdownMenuLabel className="text-sm font-semibold">
-          대여 요청 ({pendingRequests.length})
+      <DropdownMenuContent className="w-96 max-h-[500px] overflow-y-auto" align="end">
+        <DropdownMenuLabel className="text-sm font-semibold bg-accent/50 py-3 px-4 border-b">
+          💬 메시지 ({pendingRequests.length})
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
         {pendingRequests.length === 0 ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            새로운 대여 요청이 없습니다
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            새로운 메시지가 없습니다
           </div>
         ) : (
-          pendingRequests.map((request) => (
-            <div key={request.id} className="p-3 border-b last:border-b-0">
+          pendingRequests.map((request, index) => (
+            <div key={request.id} className={`p-4 hover:bg-accent/30 transition-colors ${index !== pendingRequests.length - 1 ? 'border-b' : ''}`}>
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <User className="h-4 w-4" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <User className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">
-                    {request.borrower?.display_name || '익명'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    "{request.book?.title}" 대여 요청
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTimeAgo(request.created_at)}
-                  </p>
-                  <div className="flex gap-2 mt-2">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="h-7 text-xs"
-                      onClick={() => handleRequestResponse(request.id, 'approved')}
-                      disabled={loading}
-                    >
-                      <Check className="h-3 w-3 mr-1" />
-                      승인
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => handleRequestResponse(request.id, 'rejected')}
-                      disabled={loading}
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      거절
-                    </Button>
+                  <div className="bg-accent/50 rounded-2xl p-3 mb-2">
+                    <p className="text-sm font-medium text-foreground mb-1">
+                      {request.borrower?.display_name || '익명'}
+                    </p>
+                    <p className="text-sm text-foreground leading-relaxed">
+                      안녕하세요! 📚 <strong>"{request.book?.title}"</strong> 책을 대여하고 싶습니다. 
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {formatTimeAgo(request.created_at)}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-8 text-xs px-3 bg-green-600 hover:bg-green-700"
+                        onClick={() => handleRequestResponse(request.id, 'approved')}
+                        disabled={loading}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        승인
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => handleRequestResponse(request.id, 'rejected')}
+                        disabled={loading}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        거절
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

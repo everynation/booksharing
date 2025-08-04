@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Book, Plus, Edit, Trash2, Eye, Clock, CheckCircle } from "lucide-react";
+import { Book, Plus, Edit, Trash2, Eye, Clock, CheckCircle, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -206,10 +206,16 @@ const MyPage = () => {
           <TabsContent value="my-books" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">등록한 책 ({myBooks.length}권)</h2>
-              <Button onClick={() => navigate("/add-book")} variant="warm">
-                <Plus className="h-4 w-4" />
-                새 책 등록
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => navigate("/rewards")} variant="soft">
+                  <Gift className="h-4 w-4" />
+                  보상 확인
+                </Button>
+                <Button onClick={() => navigate("/add-book")} variant="warm">
+                  <Plus className="h-4 w-4" />
+                  새 책 등록
+                </Button>
+              </div>
             </div>
 
             {loading ? (

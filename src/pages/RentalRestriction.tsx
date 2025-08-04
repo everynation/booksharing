@@ -41,29 +41,59 @@ const RentalRestriction = () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
+      // First, get transactions
+      const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
-        .select(`
-          *,
-          book:book_id (
-            title,
-            author,
-            cover_image_url,
-            transaction_type
-          ),
-          owner:owner_id (
-            display_name
-          )
-        `)
+        .select('*')
         .eq('borrower_id', user.id)
         .in('status', ['requested', 'in_progress'])
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching pending transactions:', error);
-      } else {
-        setPendingTransactions((data || []) as any);
+      if (transactionsError) {
+        console.error('Error fetching pending transactions:', transactionsError);
+        return;
       }
+
+      if (!transactionsData || transactionsData.length === 0) {
+        setPendingTransactions([]);
+        return;
+      }
+
+      // Get book IDs and owner IDs
+      const bookIds = [...new Set(transactionsData.map(t => t.book_id))];
+      const ownerIds = [...new Set(transactionsData.map(t => t.owner_id))];
+
+      // Fetch books
+      const { data: booksData } = await supabase
+        .from('books')
+        .select('id, title, author, cover_image_url, transaction_type')
+        .in('id', bookIds);
+
+      // Fetch owner profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', ownerIds);
+
+      // Create maps for easier lookup
+      const booksMap = (booksData || []).reduce((acc, book) => {
+        acc[book.id] = book;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const profilesMap = (profilesData || []).reduce((acc, profile) => {
+        acc[profile.user_id] = profile;
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Combine data
+      const combinedData = transactionsData.map(transaction => ({
+        ...transaction,
+        book: booksMap[transaction.book_id] || null,
+        owner: profilesMap[transaction.owner_id] || null
+      }));
+
+      setPendingTransactions(combinedData as any);
     } catch (error) {
       console.error('Error:', error);
     } finally {

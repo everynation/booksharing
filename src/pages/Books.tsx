@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, MapPin, Star, Clock, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ interface Book {
 
 const Books = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,7 +228,8 @@ const Books = () => {
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredBooks.map((book) => (
-              <Card key={book.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <Card key={book.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate(`/books/${book.id}`)}>
                 <CardHeader className="p-0">
                   <div className="aspect-[3/4] bg-muted relative">
                     <img 
@@ -284,7 +287,10 @@ const Books = () => {
                     className="w-full" 
                     variant={book.status === 'available' ? "warm" : "ghost"}
                     disabled={book.status !== 'available' || book.user_id === user?.id}
-                    onClick={() => handleBorrowRequest(book.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBorrowRequest(book.id);
+                    }}
                   >
                     {book.status === 'available' 
                       ? (book.user_id === user?.id ? "내 책" : `${book.transaction_type === "sale" ? "구매" : "대여"} 요청`)

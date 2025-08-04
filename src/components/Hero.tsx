@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, Users, Heart } from "lucide-react";
+import { ArrowRight, BookOpen, Users, Heart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -54,8 +54,18 @@ const Hero = () => {
               <Button 
                 variant="outline" 
                 size="lg"
-                onClick={() => user ? navigate("/add-book") : navigate("/auth")}
+                onClick={() => navigate("/reviews")}
                 className="border-primary text-primary hover:bg-primary hover:text-white"
+              >
+                <Star className="h-5 w-5 mr-2" />
+                인기 독후감 보기
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => user ? navigate("/add-book") : navigate("/auth")}
+                className="border-muted text-muted-foreground hover:bg-muted"
               >
                 <Heart className="h-5 w-5 mr-2" />
                 첫 번째 책 등록

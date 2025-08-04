@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Books from "./pages/Books";
 import BookDetail from "./pages/BookDetail";
 import BookReview from "./pages/BookReview";
+import PopularReviews from "./pages/PopularReviews";
 import AddBook from "./pages/AddBook";
 import MyPage from "./pages/MyPage";
 import ReturnProof from "./pages/ReturnProof";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/books" element={<Books />} />
             <Route path="/books/:id" element={<BookDetail />} />
             <Route path="/books/:bookId/review" element={<BookReview />} />
+            <Route path="/reviews" element={<PopularReviews />} />
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/my" element={<MyPage />} />
             <Route path="/return-proof/:transactionId" element={<ReturnProof />} />

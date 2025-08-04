@@ -33,6 +33,16 @@ const Header = () => {
           <span className="text-lg sm:text-2xl font-bold text-foreground">옆집책꽂이</span>
         </button>
         
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-6">
+          <a href="/books" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
+            책 찾기
+          </a>
+          <a href="/my" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
+            내 책장
+          </a>
+        </nav>
+
         <div className="flex items-center gap-3">
           <Button variant="soft" size="sm">
             <Search className="h-4 w-4" />
@@ -46,11 +56,12 @@ const Header = () => {
             {user ? <LogOut className="h-4 w-4" /> : <User className="h-4 w-4" />}
             <span className="hidden sm:inline">{user ? "로그아웃" : "로그인"}</span>
           </Button>
+          {/* Mobile Menu Button */}
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="relative"
+            className="md:hidden"
           >
             {isMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>

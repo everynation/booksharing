@@ -39,40 +39,48 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const [loading, setLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // 메시지 목록 가져오기 (임시로 빈 배열 - 실제로는 DB에서 가져와야 함)
+  // 실제 메시지 목록 가져오기
   const fetchMessages = async () => {
-    // 임시 메시지 데이터
-    const sampleMessages: Message[] = [
-      {
-        id: '1',
-        sender_id: otherUserId,
-        message: `안녕하세요! "${bookTitle}" 책을 대여하고 싶습니다.`,
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        sender_name: otherUserName
-      },
-      {
-        id: '2',
-        sender_id: user?.id || '',
-        message: '안녕하세요! 언제 받아가실 수 있나요?',
-        created_at: new Date(Date.now() - 1800000).toISOString(),
-        sender_name: '나'
-      },
-      {
-        id: '3',
-        sender_id: otherUserId,
-        message: '오늘 오후에 가능할까요?',
-        created_at: new Date(Date.now() - 900000).toISOString(),
-        sender_name: otherUserName
+    if (!user || !transactionId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          sender_id,
+          receiver_id,
+          message,
+          created_at
+        `)
+        .eq('transaction_id', transactionId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
       }
-    ];
-    setMessages(sampleMessages);
+
+      // 프로필 정보와 함께 메시지 매핑
+      const messagesWithNames: Message[] = (data || []).map(msg => ({
+        id: msg.id,
+        sender_id: msg.sender_id,
+        message: msg.message,
+        created_at: msg.created_at,
+        sender_name: msg.sender_id === user.id ? '나' : otherUserName
+      }));
+
+      setMessages(messagesWithNames);
+    } catch (error) {
+      console.error('Error:', error);
+    }
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && user) {
       fetchMessages();
     }
-  }, [isOpen]);
+  }, [isOpen, user, transactionId]);
 
   useEffect(() => {
     // 새 메시지가 추가될 때 스크롤을 맨 아래로
@@ -85,24 +93,39 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || loading) return;
 
+    const messageText = newMessage.trim();
+    setNewMessage(''); // 즉시 입력창 비우기
     setLoading(true);
+
     try {
+      // DB에 메시지 저장
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          transaction_id: transactionId,
+          sender_id: user.id,
+          receiver_id: otherUserId,
+          message: messageText
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
       // 새 메시지를 로컬 상태에 추가
       const newMsg: Message = {
-        id: Date.now().toString(),
+        id: data.id,
         sender_id: user.id,
-        message: newMessage.trim(),
-        created_at: new Date().toISOString(),
+        message: messageText,
+        created_at: data.created_at,
         sender_name: '나'
       };
 
       setMessages(prev => [...prev, newMsg]);
-      setNewMessage('');
-
-      // 실제로는 여기서 DB에 저장해야 함
-      // await supabase.from('messages').insert({...});
 
       toast({
         title: "메시지 전송됨",
@@ -111,6 +134,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
     } catch (error) {
       console.error('Error sending message:', error);
+      // 에러 시 입력창에 다시 텍스트 복원
+      setNewMessage(messageText);
       toast({
         title: "메시지 전송 실패",
         description: "메시지 전송 중 오류가 발생했습니다.",
@@ -149,14 +174,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               <DialogTitle className="text-lg font-semibold">{otherUserName}</DialogTitle>
               <p className="text-sm text-muted-foreground">"{bookTitle}" 대여 관련</p>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           
           {/* 승인/거절 버튼 */}

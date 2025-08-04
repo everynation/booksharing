@@ -9,7 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
-import { ArrowLeft, Upload, BookOpen } from "lucide-react";
+import { ArrowLeft, Upload, BookOpen, Scan } from "lucide-react";
+import { ISBNScanner } from "@/components/ISBNScanner";
 
 interface FormData {
   title: string;
@@ -33,6 +34,8 @@ const AddBook = () => {
     price: 0,
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [showScanner, setShowScanner] = useState(false);
+  const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,6 +76,10 @@ const AddBook = () => {
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
+
+    if (!formData.isbn.trim()) {
+      newErrors.isbn = "ISBN을 입력하거나 스캔해주세요";
+    }
 
     if (!formData.title.trim()) {
       newErrors.title = "제목을 입력해주세요";
@@ -170,6 +177,70 @@ const AddBook = () => {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+  };
+
+  const fetchBookInfo = async (isbn: string) => {
+    setIsLoadingBookInfo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('search-book', {
+        body: { isbn }
+      });
+
+      if (error) {
+        console.error('Error fetching book info:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('Book search result:', data);
+      
+      if (data.documents && data.documents.length > 0) {
+        const book = data.documents[0];
+        
+        // 자동으로 폼 데이터 채우기
+        setFormData(prev => ({
+          ...prev,
+          title: book.title || '',
+          author: book.authors ? book.authors.join(', ') : '',
+          isbn: isbn
+        }));
+
+        // 책 표지 이미지가 있으면 설정
+        if (book.thumbnail && book.thumbnail !== '/placeholder.svg') {
+          setImagePreview(book.thumbnail);
+        }
+
+        toast({
+          title: "책 정보 불러오기 완료",
+          description: `"${book.title}" 정보가 자동으로 입력되었습니다.`,
+        });
+      } else {
+        // 책을 찾지 못한 경우
+        setFormData(prev => ({
+          ...prev,
+          isbn: isbn
+        }));
+        
+        toast({
+          title: "책 정보를 찾을 수 없습니다",
+          description: "ISBN은 입력되었습니다. 나머지 정보를 수동으로 입력해주세요.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "오류가 발생했습니다",
+        description: "책 정보를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingBookInfo(false);
+    }
+  };
+
+  const handleISBNScan = (isbn: string) => {
+    console.log('ISBN scanned:', isbn);
+    fetchBookInfo(isbn);
   };
 
   return (
@@ -272,15 +343,37 @@ const AddBook = () => {
                   )}
                 </div>
 
-                {/* ISBN */}
+                {/* ISBN with Scanner */}
                 <div className="space-y-2">
-                  <Label htmlFor="isbn">ISBN (선택사항)</Label>
-                  <Input
-                    id="isbn"
-                    placeholder="ISBN을 입력하세요"
-                    value={formData.isbn}
-                    onChange={(e) => handleInputChange("isbn", e.target.value)}
-                  />
+                  <Label htmlFor="isbn">ISBN *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="isbn"
+                      placeholder="ISBN을 입력하거나 스캔하세요"
+                      value={formData.isbn}
+                      onChange={(e) => handleInputChange("isbn", e.target.value)}
+                      className="flex-1"
+                      disabled={isLoadingBookInfo}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowScanner(true)}
+                      disabled={isLoadingBookInfo}
+                      className="px-3"
+                    >
+                      <Scan className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {errors.isbn && (
+                    <p className="text-sm text-destructive">{errors.isbn}</p>
+                  )}
+                  {isLoadingBookInfo && (
+                    <p className="text-sm text-muted-foreground">📚 책 정보를 불러오는 중...</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    💡 책 뒷면의 바코드를 스캔하면 정보가 자동으로 입력됩니다
+                  </p>
                 </div>
 
                 {/* Transaction Type */}
@@ -331,6 +424,13 @@ const AddBook = () => {
           </Card>
         </div>
       </div>
+
+      {/* ISBN Scanner Modal */}
+      <ISBNScanner
+        isOpen={showScanner}
+        onScan={handleISBNScan}
+        onClose={() => setShowScanner(false)}
+      />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
+import { useNavigate } from "react-router-dom"; // ★ 추가
 
 interface PendingTransaction {
   id: string;
@@ -24,6 +25,7 @@ interface PendingTransaction {
 
 const RentalRestriction = () => {
   const { user } = useAuth();
+  const navigate = useNavigate(); // ★ 추가
   const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -205,17 +207,18 @@ const RentalRestriction = () => {
             </Card>
 
             <div className="flex gap-4">
+              {/* 여기에서 navigate로 이동합니다. */}
               <Button 
                 variant="outline" 
                 className="flex-1"
-                onClick={() => window.location.href = "/my"}
+                onClick={() => navigate("/my")}
               >
                 내 거래 내역 확인
               </Button>
               <Button 
                 variant="soft" 
                 className="flex-1"
-                onClick={() => window.location.href = "/books"}
+                onClick={() => navigate("/books")}
               >
                 책 둘러보기
               </Button>

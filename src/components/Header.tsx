@@ -43,7 +43,7 @@ const Header = () => {
             <Search className="h-4 w-4" />
             <span className="hidden sm:inline">검색</span>
           </Button>
-          <Button variant="warm" size="sm">
+          <Button variant="warm" size="sm" onClick={() => navigate("/add-book")}>
             <Plus className="h-4 w-4" />
             책 등록
           </Button>

@@ -14,7 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      books: {
+        Row: {
+          author: string
+          cover_image_url: string | null
+          created_at: string
+          id: string
+          isbn: string | null
+          price: number
+          status: string
+          title: string
+          transaction_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author: string
+          cover_image_url?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          price: number
+          status?: string
+          title: string
+          transaction_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string
+          cover_image_url?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          price?: number
+          status?: string
+          title?: string
+          transaction_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          book_id: string
+          borrower_id: string
+          created_at: string
+          id: string
+          owner_id: string
+          return_proof_image_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          borrower_id: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          return_proof_image_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          borrower_id?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          return_proof_image_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

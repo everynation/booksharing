@@ -50,13 +50,7 @@ const Books = () => {
       
       let query = supabase
         .from('books')
-        .select(`
-          *,
-          profiles!inner(
-            display_name,
-            address
-          )
-        `)
+        .select('*')
         .eq('status', 'available');
 
       // Apply transaction type filter
@@ -68,7 +62,7 @@ const Books = () => {
       const ascending = sortBy === "title";
       query = query.order(sortBy, { ascending });
 
-      const { data, error } = await query;
+      const { data: booksData, error } = await query;
 
       if (error) {
         console.error('Error fetching books:', error);
@@ -77,9 +71,36 @@ const Books = () => {
           description: "책 목록을 불러올 수 없습니다.",
           variant: "destructive",
         });
-      } else {
-        setBooks((data || []) as any);
+        return;
       }
+
+      if (!booksData || booksData.length === 0) {
+        setBooks([]);
+        return;
+      }
+
+      // Get unique user IDs from books
+      const userIds = [...new Set(booksData.map(book => book.user_id))];
+      
+      // Fetch profiles for those users
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, address')
+        .in('user_id', userIds);
+
+      // Create a map of user_id to profile
+      const profilesMap = (profilesData || []).reduce((acc, profile) => {
+        acc[profile.user_id] = profile;
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Combine books with profiles
+      const booksWithProfiles = booksData.map(book => ({
+        ...book,
+        profiles: profilesMap[book.user_id] || null
+      }));
+
+      setBooks(booksWithProfiles as any);
     } catch (error) {
       console.error('Error:', error);
       toast({

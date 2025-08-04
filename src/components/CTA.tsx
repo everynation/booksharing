@@ -47,9 +47,8 @@ const CTA = () => {
             </Button>
             <Button 
               onClick={handleAddBook}
-              variant="outline" 
               size="lg" 
-              className="text-lg px-8 border-white text-primary hover:bg-white transform hover:scale-105"
+              className="text-lg px-8 bg-white text-primary hover:bg-white/90 transform hover:scale-105"
             >
               <Plus className="h-5 w-5 mr-2" />
               첫 번째 책 등록

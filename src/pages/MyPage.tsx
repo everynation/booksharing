@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Book, Plus, Edit, Trash2, Eye, Clock } from "lucide-react";
+import { Book, Plus, Edit, Trash2, Eye, Clock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -338,7 +338,7 @@ const MyPage = () => {
                           </div>
                         </div>
                         
-                        <div className="text-right">
+                        <div className="text-right space-y-2">
                           <p className="text-sm text-muted-foreground">
                             {transaction.borrower?.display_name && user.id !== transaction.borrower_id
                               ? `대여자: ${transaction.borrower.display_name}`
@@ -346,6 +346,18 @@ const MyPage = () => {
                               ? `소유자: ${transaction.owner.display_name}`
                               : ""}
                           </p>
+                          {/* Return Proof Button - Only show for owners of in_progress transactions */}
+                          {transaction.status === 'in_progress' && transaction.owner_id === user.id && (
+                            <Button
+                              size="sm"
+                              variant="warm"
+                              onClick={() => navigate(`/return-proof/${transaction.id}`)}
+                              className="flex items-center gap-2"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              반납 인증
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>

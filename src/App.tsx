@@ -9,6 +9,7 @@ import Books from "./pages/Books";
 import BookDetail from "./pages/BookDetail";
 import AddBook from "./pages/AddBook";
 import MyPage from "./pages/MyPage";
+import ReturnProof from "./pages/ReturnProof";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/books/:id" element={<BookDetail />} />
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/my" element={<MyPage />} />
+            <Route path="/return-proof/:transactionId" element={<ReturnProof />} />
             <Route path="/auth" element={<Auth />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -184,7 +184,7 @@ const BookDetail = () => {
     try {
       const { error } = await supabase
         .from('transactions')
-        .update({ status: 'completed' })
+        .update({ status: 'in_progress' }) // Change to in_progress instead of completed
         .eq('id', existingTransaction.id);
 
       if (error) {
@@ -195,17 +195,9 @@ const BookDetail = () => {
         });
       } else {
         toast({
-          title: "거래 완료",
-          description: "거래가 성공적으로 완료되었습니다.",
+          title: "거래 진행중",
+          description: "책을 받았습니다. 책 주인이 반납 인증을 완료하면 거래가 완료됩니다.",
         });
-        
-        // If it's a sale, update book status to sold
-        if (book?.transaction_type === 'sale') {
-          await supabase
-            .from('books')
-            .update({ status: 'sold' })
-            .eq('id', book.id);
-        }
         
         fetchBookDetail();
       }

@@ -52,10 +52,9 @@ const Hero = () => {
               </Button>
               
               <Button 
-                variant="outline" 
                 size="lg"
                 onClick={() => user ? navigate("/add-book") : navigate("/auth")}
-                className="border-primary text-primary hover:bg-primary hover:text-white"
+                className="bg-gradient-to-r from-warm-orange to-primary hover:shadow-warm transform hover:scale-105"
               >
                 <Heart className="h-5 w-5 mr-2" />
                 + 첫번째 책 등록

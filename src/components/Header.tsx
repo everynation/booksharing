@@ -1,7 +1,20 @@
-import { Book, Search, User, Plus } from "lucide-react";
+import { Book, Search, User, Plus, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const Header = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleAuthClick = () => {
+    if (user) {
+      signOut();
+    } else {
+      navigate("/auth");
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
@@ -34,8 +47,9 @@ const Header = () => {
             <Plus className="h-4 w-4" />
             책 등록
           </Button>
-          <Button variant="ghost" size="sm">
-            <User className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={handleAuthClick}>
+            {user ? <LogOut className="h-4 w-4" /> : <User className="h-4 w-4" />}
+            <span className="hidden sm:inline">{user ? "로그아웃" : "로그인"}</span>
           </Button>
         </div>
       </div>

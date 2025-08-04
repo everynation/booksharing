@@ -1,31 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import { ArrowLeft, Upload, BookOpen } from "lucide-react";
 
-const formSchema = z.object({
-  title: z.string().min(1, "제목을 입력해주세요"),
-  author: z.string().min(1, "저자를 입력해주세요"),
-  isbn: z.string().optional(),
-  transaction_type: z.enum(["sale", "rental"], {
-    required_error: "거래 유형을 선택해주세요",
-  }),
-  price: z.number().min(0, "가격은 0원 이상이어야 합니다"),
-});
-
-type FormData = z.infer<typeof formSchema>;
+interface FormData {
+  title: string;
+  author: string;
+  isbn: string;
+  transaction_type: "sale" | "rental";
+  price: number;
+}
 
 const AddBook = () => {
   const { user } = useAuth();
@@ -33,17 +25,14 @@ const AddBook = () => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      author: "",
-      isbn: "",
-      transaction_type: "rental",
-      price: 0,
-    },
+  const [formData, setFormData] = useState<FormData>({
+    title: "",
+    author: "",
+    isbn: "",
+    transaction_type: "rental",
+    price: 0,
   });
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,7 +71,28 @@ const AddBook = () => {
     }
   };
 
-  const onSubmit = async (data: FormData) => {
+  const validateForm = (): boolean => {
+    const newErrors: Partial<Record<keyof FormData, string>> = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = "제목을 입력해주세요";
+    }
+
+    if (!formData.author.trim()) {
+      newErrors.author = "저자를 입력해주세요";
+    }
+
+    if (formData.price < 0) {
+      newErrors.price = "가격은 0원 이상이어야 합니다";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (!user) {
       toast({
         title: "로그인이 필요합니다",
@@ -90,6 +100,10 @@ const AddBook = () => {
         variant: "destructive",
       });
       navigate("/auth");
+      return;
+    }
+
+    if (!validateForm()) {
       return;
     }
 
@@ -117,12 +131,12 @@ const AddBook = () => {
         .from('books')
         .insert({
           user_id: user.id,
-          title: data.title,
-          author: data.author,
-          isbn: data.isbn || null,
+          title: formData.title,
+          author: formData.author,
+          isbn: formData.isbn || null,
           cover_image_url: coverImageUrl,
-          transaction_type: data.transaction_type,
-          price: data.price,
+          transaction_type: formData.transaction_type,
+          price: formData.price,
           status: 'available',
         });
 
@@ -147,6 +161,14 @@ const AddBook = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field: keyof FormData, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -180,150 +202,131 @@ const AddBook = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Book Cover Upload */}
-                  <div className="space-y-2">
-                    <Label htmlFor="cover-image">책 표지 이미지</Label>
-                    <div className="flex flex-col items-center gap-4">
-                      {imagePreview ? (
-                        <div className="relative">
-                          <img
-                            src={imagePreview}
-                            alt="Book cover preview"
-                            className="w-32 h-48 object-cover rounded-md border border-border"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="absolute -top-2 -right-2"
-                            onClick={() => {
-                              setImageFile(null);
-                              setImagePreview(null);
-                            }}
-                          >
-                            ✕
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
-                          <Upload className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      )}
-                      <Input
-                        id="cover-image"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="w-full"
-                      />
-                    </div>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Book Cover Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="cover-image">책 표지 이미지</Label>
+                  <div className="flex flex-col items-center gap-4">
+                    {imagePreview ? (
+                      <div className="relative">
+                        <img
+                          src={imagePreview}
+                          alt="Book cover preview"
+                          className="w-32 h-48 object-cover rounded-md border border-border"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="absolute -top-2 -right-2"
+                          onClick={() => {
+                            setImageFile(null);
+                            setImagePreview(null);
+                          }}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <Input
+                      id="cover-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="w-full"
+                    />
                   </div>
+                </div>
 
-                  {/* Title */}
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>제목 *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="책 제목을 입력하세요" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                {/* Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="title">제목 *</Label>
+                  <Input
+                    id="title"
+                    placeholder="책 제목을 입력하세요"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange("title", e.target.value)}
+                    className={errors.title ? "border-destructive" : ""}
                   />
+                  {errors.title && (
+                    <p className="text-sm text-destructive">{errors.title}</p>
+                  )}
+                </div>
 
-                  {/* Author */}
-                  <FormField
-                    control={form.control}
-                    name="author"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>저자 *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="저자명을 입력하세요" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                {/* Author */}
+                <div className="space-y-2">
+                  <Label htmlFor="author">저자 *</Label>
+                  <Input
+                    id="author"
+                    placeholder="저자명을 입력하세요"
+                    value={formData.author}
+                    onChange={(e) => handleInputChange("author", e.target.value)}
+                    className={errors.author ? "border-destructive" : ""}
                   />
+                  {errors.author && (
+                    <p className="text-sm text-destructive">{errors.author}</p>
+                  )}
+                </div>
 
-                  {/* ISBN */}
-                  <FormField
-                    control={form.control}
-                    name="isbn"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ISBN (선택사항)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="ISBN을 입력하세요" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                {/* ISBN */}
+                <div className="space-y-2">
+                  <Label htmlFor="isbn">ISBN (선택사항)</Label>
+                  <Input
+                    id="isbn"
+                    placeholder="ISBN을 입력하세요"
+                    value={formData.isbn}
+                    onChange={(e) => handleInputChange("isbn", e.target.value)}
                   />
+                </div>
 
-                  {/* Transaction Type */}
-                  <FormField
-                    control={form.control}
-                    name="transaction_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>거래 유형 *</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex flex-row space-x-6"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="rental" id="rental" />
-                              <Label htmlFor="rental">대여</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="sale" id="sale" />
-                              <Label htmlFor="sale">판매</Label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Price */}
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>가격 (원) *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={loading}
-                    variant="warm"
+                {/* Transaction Type */}
+                <div className="space-y-2">
+                  <Label>거래 유형 *</Label>
+                  <RadioGroup
+                    value={formData.transaction_type}
+                    onValueChange={(value) => handleInputChange("transaction_type", value as "sale" | "rental")}
+                    className="flex flex-row space-x-6"
                   >
-                    {loading ? "등록 중..." : "책 등록하기"}
-                  </Button>
-                </form>
-              </Form>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="rental" id="rental" />
+                      <Label htmlFor="rental">대여</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="sale" id="sale" />
+                      <Label htmlFor="sale">판매</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Price */}
+                <div className="space-y-2">
+                  <Label htmlFor="price">가격 (원) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    placeholder="0"
+                    value={formData.price}
+                    onChange={(e) => handleInputChange("price", Number(e.target.value))}
+                    className={errors.price ? "border-destructive" : ""}
+                  />
+                  {errors.price && (
+                    <p className="text-sm text-destructive">{errors.price}</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading}
+                  variant="warm"
+                >
+                  {loading ? "등록 중..." : "책 등록하기"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>

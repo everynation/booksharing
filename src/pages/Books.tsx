@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { checkUserCanBorrow } from "@/lib/rentalUtils";
 import Header from "@/components/Header";
 
 interface BookProfile {
@@ -111,6 +112,13 @@ const Books = () => {
         description: "자신이 등록한 책은 대여할 수 없습니다.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Check if user can borrow (no pending transactions)
+    const { canBorrow } = await checkUserCanBorrow(user.id);
+    if (!canBorrow) {
+      navigate("/rental-restriction");
       return;
     }
 

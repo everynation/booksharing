@@ -10,6 +10,7 @@ import BookDetail from "./pages/BookDetail";
 import AddBook from "./pages/AddBook";
 import MyPage from "./pages/MyPage";
 import ReturnProof from "./pages/ReturnProof";
+import RentalRestriction from "./pages/RentalRestriction";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/my" element={<MyPage />} />
             <Route path="/return-proof/:transactionId" element={<ReturnProof />} />
+            <Route path="/rental-restriction" element={<RentalRestriction />} />
             <Route path="/auth" element={<Auth />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -43,19 +43,21 @@ interface Transaction {
 }
 
 const MyPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [myBooks, setMyBooks] = useState<MyBook[]>([]);
   const [myTransactions, setMyTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to complete
+    
     if (!user) {
       navigate("/auth");
       return;
     }
     fetchMyData();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const fetchMyData = async () => {
     if (!user) return;

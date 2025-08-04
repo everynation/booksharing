@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
@@ -7,6 +8,15 @@ import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 
 const Index = () => {
+  useEffect(() => {
+    console.log("🏠 Index page mounted");
+    return () => {
+      console.log("🏠 Index page unmounted");
+    };
+  }, []);
+
+  console.log("🏠 Index page rendering");
+
   return (
     <div className="min-h-screen">
       <Header />

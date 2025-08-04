@@ -92,7 +92,8 @@ const Auth = () => {
           title: "로그인 성공",
           description: "환영합니다!",
         });
-        navigate("/");
+        console.log("🔐 Login successful, navigating to /books");
+        navigate("/books");
       }
     } catch (error) {
       toast({

@@ -52,7 +52,7 @@ const Books = () => {
         .from('books')
         .select(`
           *,
-          profiles:user_id (
+          profiles!inner(
             display_name,
             address
           )

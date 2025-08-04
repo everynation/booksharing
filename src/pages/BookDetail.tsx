@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Calendar, User, Phone, MessageCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, User, Phone, MessageCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -426,6 +426,17 @@ const BookDetail = () => {
 
               <div className="space-y-4">
                 {getActionButton()}
+                
+                {/* Review Button */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => navigate(`/books/${book.id}/review`)}
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  독후감 보기
+                </Button>
               </div>
             </div>
           </div>

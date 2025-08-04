@@ -18,7 +18,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
   const [controlsRef, setControlsRef] = useState<any>(null);
 
   useEffect(() => {
-    let controls: any = null;
+    let codeReader: BrowserMultiFormatReader | null = null;
 
     const startScanner = async () => {
       if (!isOpen || !videoRef.current) return;
@@ -27,31 +27,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         setError(null);
         setIsScanning(true);
 
-        const codeReader = new BrowserMultiFormatReader();
-
-        // 바코드 스캔 시작
-        controls = await codeReader.decodeOnceFromVideoDevice(undefined, videoRef.current);
-        setControlsRef(controls);
-
-        // 성공적으로 스캔된 경우 처리는 decodeOnceFromVideoDevice가 promise로 반환
-        controls.then((result: any) => {
-          if (result) {
-            const text = result.getText();
-            console.log('Scanned code:', text);
-            
-            // ISBN 패턴 검증 (10자리 또는 13자리)
-            const isbnPattern = /^(?:97[89])?\d{9}[\dX]$/;
-            if (isbnPattern.test(text.replace(/[-\s]/g, ''))) {
-              onScan(text.replace(/[-\s]/g, ''));
-              stopScanner();
-              onClose();
-            }
-          }
-        }).catch((err: any) => {
-          if (err && err.name !== 'NotFoundException') {
-            console.error('Scanner error:', err);
-          }
-        });
+        codeReader = new BrowserMultiFormatReader();
 
         // 카메라 스트림 시작
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -63,6 +39,44 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         });
         videoRef.current.srcObject = stream;
 
+        // 연속적으로 바코드 스캔 시도
+        const scanLoop = async () => {
+          if (!codeReader || !videoRef.current) return;
+          
+          try {
+            const result = await codeReader.decodeOnceFromVideoDevice(undefined, videoRef.current);
+            
+            if (result) {
+              const text = result.getText();
+              console.log('Scanned code:', text);
+              
+              // ISBN 패턴 검증 (10자리 또는 13자리)
+              const cleanText = text.replace(/[-\s]/g, '');
+              const isbnPattern = /^(?:97[89])?\d{9}[\dX]$/;
+              
+              if (isbnPattern.test(cleanText)) {
+                onScan(cleanText);
+                stopScanner();
+                onClose();
+                return;
+              }
+            }
+          } catch (err) {
+            // NotFoundException은 정상적인 상황 (바코드가 보이지 않을 때)
+            if (err && !(err instanceof NotFoundException)) {
+              console.error('Scanner error:', err);
+            }
+          }
+          
+          // 100ms 후 다시 스캔 시도
+          if (isScanning) {
+            setTimeout(scanLoop, 100);
+          }
+        };
+
+        // 스캔 루프 시작
+        scanLoop();
+
       } catch (err) {
         console.error('Error starting scanner:', err);
         setError('카메라에 접근할 수 없습니다. 카메라 권한을 허용해주세요.');
@@ -71,13 +85,13 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     };
 
     const stopScanner = () => {
+      setIsScanning(false);
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
       }
-      setIsScanning(false);
-      setControlsRef(null);
+      codeReader = null;
     };
 
     if (isOpen) {
@@ -89,7 +103,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     return () => {
       stopScanner();
     };
-  }, [isOpen, onScan, onClose]);
+  }, [isOpen, onScan, onClose, isScanning]);
 
   const handleClose = () => {
     if (videoRef.current && videoRef.current.srcObject) {

@@ -30,9 +30,6 @@ const Header = () => {
           <a href="/books" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
             책 찾기
           </a>
-          <a href="/community" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
-            독후감
-          </a>
           <a href="/my" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
             내 책장
           </a>

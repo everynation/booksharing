@@ -27,6 +27,11 @@ interface PendingRequest {
   borrower: {
     display_name: string;
   };
+  last_message?: {
+    message: string;
+    created_at: string;
+    sender_id: string;
+  };
 }
 
 export const NotificationDropdown = () => {
@@ -52,14 +57,15 @@ export const NotificationDropdown = () => {
           id,
           book_id,
           borrower_id,
+          owner_id,
           created_at,
           books!inner (
             title,
             author
           )
         `)
-        .eq('owner_id', user.id)
-        .eq('status', 'requested')
+        .or(`owner_id.eq.${user.id},borrower_id.eq.${user.id}`)
+        .in('status', ['requested', 'approved'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -67,32 +73,68 @@ export const NotificationDropdown = () => {
         return;
       }
 
-      // Get borrower profiles separately
-      const borrowerIds = data?.map(item => item.borrower_id) || [];
-      let profiles: any[] = [];
+      // Get all involved user IDs
+      const userIds = new Set<string>();
+      data?.forEach(item => {
+        userIds.add(item.borrower_id);
+        userIds.add(item.owner_id);
+      });
       
-      if (borrowerIds.length > 0) {
+      // Get profiles
+      let profiles: any[] = [];
+      if (userIds.size > 0) {
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('user_id, display_name')
-          .in('user_id', borrowerIds);
+          .in('user_id', Array.from(userIds));
         profiles = profilesData || [];
       }
 
+      // Get last messages for each transaction
+      const transactionIds = data?.map(item => item.id) || [];
+      let lastMessages: any[] = [];
+      
+      if (transactionIds.length > 0) {
+        const { data: messagesData } = await supabase
+          .from('messages')
+          .select('transaction_id, message, created_at, sender_id')
+          .in('transaction_id', transactionIds)
+          .order('created_at', { ascending: false });
+        
+        // Get only the latest message for each transaction
+        const messagesByTransaction = new Map();
+        messagesData?.forEach(msg => {
+          if (!messagesByTransaction.has(msg.transaction_id)) {
+            messagesByTransaction.set(msg.transaction_id, msg);
+          }
+        });
+        lastMessages = Array.from(messagesByTransaction.values());
+      }
+
       // Map the data to match our interface
-      const mappedData = data?.map(item => ({
-        id: item.id,
-        book_id: item.book_id,
-        borrower_id: item.borrower_id,
-        created_at: item.created_at,
-        book: {
-          title: item.books?.title || '',
-          author: item.books?.author || ''
-        },
-        borrower: {
-          display_name: profiles.find(p => p.user_id === item.borrower_id)?.display_name || '익명'
-        }
-      })) || [];
+      const mappedData = data?.map(item => {
+        const otherUserId = item.owner_id === user.id ? item.borrower_id : item.owner_id;
+        const lastMessage = lastMessages.find(msg => msg.transaction_id === item.id);
+        
+        return {
+          id: item.id,
+          book_id: item.book_id,
+          borrower_id: otherUserId, // 상대방 ID로 설정
+          created_at: item.created_at,
+          book: {
+            title: item.books?.title || '',
+            author: item.books?.author || ''
+          },
+          borrower: {
+            display_name: profiles.find(p => p.user_id === otherUserId)?.display_name || '익명'
+          },
+          last_message: lastMessage ? {
+            message: lastMessage.message,
+            created_at: lastMessage.created_at,
+            sender_id: lastMessage.sender_id
+          } : undefined
+        };
+      }) || [];
 
       setPendingRequests(mappedData);
     } catch (error) {
@@ -116,7 +158,18 @@ export const NotificationDropdown = () => {
             filter: `owner_id=eq.${user.id}`
           },
           () => {
-            // 새 대여 요청이 들어오면 목록을 다시 가져옴
+            fetchPendingRequests();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'transactions',
+            filter: `borrower_id=eq.${user.id}`
+          },
+          () => {
             fetchPendingRequests();
           }
         )
@@ -128,7 +181,17 @@ export const NotificationDropdown = () => {
             table: 'transactions'
           },
           () => {
-            // transaction 상태가 업데이트되면 목록을 다시 가져옴
+            fetchPendingRequests();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          () => {
             fetchPendingRequests();
           }
         )
@@ -231,12 +294,18 @@ export const NotificationDropdown = () => {
                       {request.borrower?.display_name || '익명'}
                     </p>
                     <p className="text-sm text-foreground leading-relaxed">
-                      안녕하세요! 📚 <strong>"{request.book?.title}"</strong> 책을 대여하고 싶습니다. 
+                      {request.last_message ? 
+                        (request.last_message.sender_id === user?.id ? '나: ' : '') + request.last_message.message
+                        : `📚 "${request.book?.title}" 책을 대여하고 싶습니다.`
+                      }
                     </p>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">
-                      {formatTimeAgo(request.created_at)}
+                      {request.last_message ? 
+                        formatTimeAgo(request.last_message.created_at) 
+                        : formatTimeAgo(request.created_at)
+                      }
                     </p>
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                       <Button

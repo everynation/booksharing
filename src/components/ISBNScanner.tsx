@@ -29,14 +29,30 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
 
         codeReader = new BrowserMultiFormatReader();
 
-        // 카메라 스트림 시작
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // 카메라 스트림 시작 (안드로이드 호환성 개선)
+        const constraints = {
           video: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            facingMode: { ideal: 'environment' },
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 },
+            aspectRatio: { ideal: 16/9 }
           }
-        });
+        };
+
+        // 안드로이드에서 후면 카메라 접근 실패 시 일반 카메라로 fallback
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (error) {
+          console.log('후면 카메라 접근 실패, 일반 카메라로 시도:', error);
+          const fallbackConstraints = {
+            video: {
+              width: { min: 640, ideal: 1280 },
+              height: { min: 480, ideal: 720 }
+            }
+          };
+          stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+        }
         videoRef.current.srcObject = stream;
 
         // 연속적으로 바코드 스캔 시도

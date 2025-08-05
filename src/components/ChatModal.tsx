@@ -79,8 +79,36 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   useEffect(() => {
     if (isOpen && user) {
       fetchMessages();
+      
+      // 실시간 메시지 구독 설정
+      const channel = supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `transaction_id=eq.${transactionId}`
+          },
+          (payload) => {
+            const newMessage: Message = {
+              id: payload.new.id,
+              sender_id: payload.new.sender_id,
+              message: payload.new.message,
+              created_at: payload.new.created_at,
+              sender_name: payload.new.sender_id === user.id ? '나' : otherUserName
+            };
+            setMessages(prev => [...prev, newMessage]);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-  }, [isOpen, user, transactionId]);
+  }, [isOpen, user, transactionId, otherUserName]);
 
   useEffect(() => {
     // 새 메시지가 추가될 때 스크롤을 맨 아래로

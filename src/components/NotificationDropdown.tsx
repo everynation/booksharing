@@ -101,7 +101,43 @@ export const NotificationDropdown = () => {
   };
 
   useEffect(() => {
-    fetchPendingRequests();
+    if (user) {
+      fetchPendingRequests();
+      
+      // 실시간 transaction 구독 설정
+      const channel = supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'transactions',
+            filter: `owner_id=eq.${user.id}`
+          },
+          () => {
+            // 새 대여 요청이 들어오면 목록을 다시 가져옴
+            fetchPendingRequests();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'transactions'
+          },
+          () => {
+            // transaction 상태가 업데이트되면 목록을 다시 가져옴
+            fetchPendingRequests();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [user]);
 
   const handleRequestResponse = async (requestId: string, action: 'approved' | 'rejected') => {

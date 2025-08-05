@@ -112,12 +112,18 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
   useEffect(() => {
     // 새 메시지가 추가될 때 스크롤을 맨 아래로
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
+    const scrollToBottom = () => {
+      if (scrollAreaRef.current) {
+        const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollElement) {
+          setTimeout(() => {
+            scrollElement.scrollTop = scrollElement.scrollHeight;
+          }, 100);
+        }
       }
-    }
+    };
+
+    scrollToBottom();
   }, [messages]);
 
   const sendMessage = async () => {
@@ -128,32 +134,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     setLoading(true);
 
     try {
-      // DB에 메시지 저장
-      const { data, error } = await supabase
+      // DB에 메시지 저장 (실시간 구독으로 자동 업데이트됨)
+      const { error } = await supabase
         .from('messages')
         .insert({
           transaction_id: transactionId,
           sender_id: user.id,
           receiver_id: otherUserId,
           message: messageText
-        })
-        .select()
-        .single();
+        });
 
       if (error) {
         throw error;
       }
-
-      // 새 메시지를 로컬 상태에 추가
-      const newMsg: Message = {
-        id: data.id,
-        sender_id: user.id,
-        message: messageText,
-        created_at: data.created_at,
-        sender_name: '나'
-      };
-
-      setMessages(prev => [...prev, newMsg]);
 
       toast({
         title: "메시지 전송됨",

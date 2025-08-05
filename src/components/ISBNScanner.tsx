@@ -19,56 +19,73 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
 
   useEffect(() => {
     let codeReader: BrowserMultiFormatReader | null = null;
+    let isActive = true;
 
     const startScanner = async () => {
-      if (!isOpen || !videoRef.current) return;
+      if (!isOpen || !videoRef.current || !isActive) return;
 
       try {
         setError(null);
         setIsScanning(true);
 
-        codeReader = new BrowserMultiFormatReader();
-
-        // 카메라 스트림 시작 (안드로이드 호환성 개선)
+        // 안드로이드 호환성을 위한 더 간단한 카메라 설정
         const constraints = {
           video: {
-            facingMode: { ideal: 'environment' },
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 },
-            aspectRatio: { ideal: 16/9 }
+            facingMode: 'environment', // ideal 대신 직접 지정
+            width: { min: 320, ideal: 640, max: 1280 },
+            height: { min: 240, ideal: 480, max: 720 }
           }
         };
 
-        // 안드로이드에서 후면 카메라 접근 실패 시 일반 카메라로 fallback
         let stream;
         try {
           stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (error) {
-          console.log('후면 카메라 접근 실패, 일반 카메라로 시도:', error);
+          console.log('후면 카메라 접근 실패, 기본 카메라로 시도:', error);
+          // 더 기본적인 제약조건으로 fallback
           const fallbackConstraints = {
-            video: {
-              width: { min: 640, ideal: 1280 },
-              height: { min: 480, ideal: 720 }
-            }
+            video: true
           };
           stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
         }
+
+        if (!isActive || !videoRef.current) {
+          // 컴포넌트가 언마운트된 경우 스트림 정리
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
         videoRef.current.srcObject = stream;
 
-        // 연속적으로 바코드 스캔 시도
+        // 비디오가 로드될 때까지 기다림
+        await new Promise((resolve) => {
+          const video = videoRef.current;
+          if (video && video.readyState >= 2) {
+            resolve(void 0);
+          } else if (video) {
+            video.onloadeddata = () => resolve(void 0);
+          }
+        });
+
+        if (!isActive) return;
+
+        codeReader = new BrowserMultiFormatReader();
+
+        // 안드로이드에서 더 안정적인 스캔 루프
         const scanLoop = async () => {
-          if (!codeReader || !videoRef.current) return;
+          if (!codeReader || !videoRef.current || !isActive) return;
           
           try {
+            // 안드로이드에서 더 안정적인 디코딩
             const result = await codeReader.decodeOnceFromVideoDevice(undefined, videoRef.current);
             
-            if (result) {
+            if (result && isActive) {
               const text = result.getText();
               console.log('Scanned code:', text);
               
-              // ISBN 패턴 검증 (10자리 또는 13자리)
+              // ISBN 패턴 검증 (더 유연한 패턴)
               const cleanText = text.replace(/[-\s]/g, '');
-              const isbnPattern = /^(?:97[89])?\d{9}[\dX]$/;
+              const isbnPattern = /^(?:97[89])?\d{9}[\dX]$/i;
               
               if (isbnPattern.test(cleanText)) {
                 onScan(cleanText);
@@ -78,25 +95,27 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
               }
             }
           } catch (err) {
-            // NotFoundException은 정상적인 상황 (바코드가 보이지 않을 때)
+            // NotFoundException은 정상적인 상황
             if (err && !(err instanceof NotFoundException)) {
               console.error('Scanner error:', err);
             }
           }
           
-          // 100ms 후 다시 스캔 시도
-          if (isScanning) {
-            setTimeout(scanLoop, 100);
+          // 안드로이드에서 더 긴 간격으로 재시도
+          if (isActive && isScanning) {
+            setTimeout(scanLoop, 200);
           }
         };
 
         // 스캔 루프 시작
-        scanLoop();
+        setTimeout(scanLoop, 500); // 초기 지연
 
       } catch (err) {
         console.error('Error starting scanner:', err);
-        setError('카메라에 접근할 수 없습니다. 카메라 권한을 허용해주세요.');
-        setIsScanning(false);
+        if (isActive) {
+          setError('카메라에 접근할 수 없습니다. 카메라 권한을 허용해주세요.');
+          setIsScanning(false);
+        }
       }
     };
 

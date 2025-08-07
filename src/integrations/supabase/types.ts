@@ -16,11 +16,14 @@ export type Database = {
     Tables: {
       books: {
         Row: {
+          address: string | null
           author: string
           cover_image_url: string | null
           created_at: string
           id: string
           isbn: string | null
+          latitude: number | null
+          longitude: number | null
           price: number
           status: string
           title: string
@@ -29,11 +32,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          address?: string | null
           author: string
           cover_image_url?: string | null
           created_at?: string
           id?: string
           isbn?: string | null
+          latitude?: number | null
+          longitude?: number | null
           price: number
           status?: string
           title: string
@@ -42,11 +48,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          address?: string | null
           author?: string
           cover_image_url?: string | null
           created_at?: string
           id?: string
           isbn?: string | null
+          latitude?: number | null
+          longitude?: number | null
           price?: number
           status?: string
           title?: string

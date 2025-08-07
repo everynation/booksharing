@@ -117,6 +117,24 @@ const AddBook = () => {
     setLoading(true);
 
     try {
+      // 사용자 프로필에서 주소 정보 가져오기
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('address')
+        .eq('user_id', user.id)
+        .single();
+
+      const userAddress = profileData?.address;
+      if (!userAddress) {
+        toast({
+          title: "주소 정보가 없습니다",
+          description: "프로필에서 주소를 먼저 설정해주세요.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       let coverImageUrl = null;
 
       // Upload image if selected
@@ -133,7 +151,7 @@ const AddBook = () => {
         }
       }
 
-      // Insert book data
+      // Insert book data with user's address
       const { error } = await supabase
         .from('books')
         .insert({
@@ -144,6 +162,7 @@ const AddBook = () => {
           cover_image_url: coverImageUrl,
           transaction_type: formData.transaction_type,
           price: formData.price,
+          address: userAddress, // 사용자 주소 자동 설정
           status: 'available',
         });
 

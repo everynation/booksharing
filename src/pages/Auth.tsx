@@ -8,21 +8,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Book } from "lucide-react";
+import { AddressInput } from "@/components/AddressInput";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [address, setAddress] = useState("");
+  const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!address.trim()) {
+      toast({
+        title: "주소를 입력해주세요",
+        description: "회원가입을 위해 주소 정보가 필요합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // 1. 회원가입
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -33,8 +47,8 @@ const Auth = () => {
         },
       });
 
-      if (error) {
-        if (error.message.includes("already registered")) {
+      if (authError) {
+        if (authError.message.includes("already registered")) {
           toast({
             title: "계정이 이미 존재합니다",
             description: "로그인 탭으로 이동해서 로그인해 주세요.",
@@ -43,16 +57,33 @@ const Auth = () => {
         } else {
           toast({
             title: "회원가입 오류",
-            description: error.message,
+            description: authError.message,
             variant: "destructive",
           });
         }
-      } else {
-        toast({
-          title: "회원가입 완료",
-          description: "이메일을 확인하여 계정을 활성화하세요.",
-        });
+        return;
       }
+
+      // 2. 프로필에 주소 정보 추가 (회원가입 성공 시에만)
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            address: address,
+          })
+          .eq('user_id', authData.user.id);
+
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          // 프로필 업데이트 실패해도 회원가입은 성공으로 처리
+        }
+      }
+
+      toast({
+        title: "회원가입 완료",
+        description: "이메일을 확인하여 계정을 활성화하세요.",
+      });
+      
     } catch (error) {
       toast({
         title: "오류가 발생했습니다",
@@ -282,6 +313,17 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-address">주소</Label>
+                    <AddressInput
+                      value={address}
+                      onChange={(newAddress, coordinates) => {
+                        setAddress(newAddress);
+                        setAddressCoordinates(coordinates || null);
+                      }}
+                      placeholder="주소를 검색하세요"
                     />
                   </div>
                   <Button 

@@ -81,12 +81,13 @@ const AddBook = () => {
       newErrors.isbn = "ISBN을 입력하거나 스캔해주세요";
     }
 
+    // ISBN으로 자동 입력된 경우 제목, 저자 검증 생략
     if (!formData.title.trim()) {
-      newErrors.title = "제목을 입력해주세요";
+      newErrors.title = "제목을 입력해주세요 (ISBN 스캔으로 자동 입력 가능)";
     }
 
     if (!formData.author.trim()) {
-      newErrors.author = "저자를 입력해주세요";
+      newErrors.author = "저자를 입력해주세요 (ISBN 스캔으로 자동 입력 가능)";
     }
 
     if (formData.price < 0) {

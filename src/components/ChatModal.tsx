@@ -70,6 +70,33 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         sender_name: msg.sender_id === user.id ? '나' : otherUserName
       }));
 
+      // 메시지가 없으면 초기 메시지 생성
+      if (messagesWithNames.length === 0) {
+        const initialMessage = `📚 "${bookTitle}" 책을 대여하고 싶습니다.`;
+        
+        // DB에 초기 메시지 저장
+        const { data: newMessageData, error: insertError } = await supabase
+          .from('messages')
+          .insert({
+            transaction_id: transactionId,
+            sender_id: otherUserId, // 요청자(borrower)가 보낸 것으로 설정
+            receiver_id: user.id,
+            message: initialMessage
+          })
+          .select()
+          .single();
+
+        if (!insertError && newMessageData) {
+          messagesWithNames.push({
+            id: newMessageData.id,
+            sender_id: newMessageData.sender_id,
+            message: newMessageData.message,
+            created_at: newMessageData.created_at,
+            sender_name: otherUserName
+          });
+        }
+      }
+
       setMessages(messagesWithNames);
     } catch (error) {
       console.error('Error:', error);

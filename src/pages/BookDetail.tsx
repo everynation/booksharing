@@ -145,36 +145,56 @@ const BookDetail = () => {
     setRequestLoading(true);
 
     try {
-      const { error } = await supabase
+      // 1. 트랜잭션 생성
+      const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
         .insert({
           book_id: book.id,
           borrower_id: user.id,
           owner_id: book.user_id,
           status: 'requested',
-        });
+        })
+        .select('id')
+        .single();
 
-      if (error) {
+      if (transactionError) {
         toast({
           title: "대여 요청 실패",
-          description: error.message,
+          description: transactionError.message,
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "대여 요청 완료",
-          description: "직접 만나서 거래하세요. 책 주인과 연락하여 만날 장소와 시간을 정하세요.",
-        });
-        
-        // Update book status to rented
-        await supabase
-          .from('books')
-          .update({ status: 'rented' })
-          .eq('id', book.id);
-        
-        // Refresh book detail
-        fetchBookDetail();
+        return;
       }
+
+      // 2. 초기 메시지 생성
+      const initialMessage = `📚 "${book.title}" 책을 대여하고 싶습니다.`;
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          transaction_id: transactionData.id,
+          sender_id: user.id,
+          receiver_id: book.user_id,
+          message: initialMessage
+        });
+
+      if (messageError) {
+        console.error('Error creating initial message:', messageError);
+        // 메시지 생성 실패해도 트랜잭션은 유지
+      }
+
+      toast({
+        title: "대여 요청 완료",
+        description: "직접 만나서 거래하세요. 책 주인과 연락하여 만날 장소와 시간을 정하세요.",
+      });
+      
+      // Update book status to rented
+      await supabase
+        .from('books')
+        .update({ status: 'rented' })
+        .eq('id', book.id);
+      
+      // Refresh book detail
+      fetchBookDetail();
     } catch (error) {
       toast({
         title: "오류가 발생했습니다",

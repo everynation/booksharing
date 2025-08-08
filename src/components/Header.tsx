@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { NotificationDropdown } from "./NotificationDropdown";
+import appLogo from "@/assets/app-logo.png";
 
 const Header = () => {
   const { user, signOut } = useAuth();
@@ -30,7 +31,7 @@ const Header = () => {
           onClick={handleLogoClick}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <Book className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <img src={appLogo} alt="옆집책꽂이" className="h-6 w-6 sm:h-8 sm:w-8" />
           <span className="text-lg sm:text-2xl font-bold text-foreground">옆집책꽂이</span>
         </button>
         

@@ -6,7 +6,7 @@ declare global {
   }
 }
 
-const KAKAO_SDK_URL = "//dapi.kakao.com/v2/maps/sdk.js?appkey=42c2269af0526cb8e15cc15e95efb23c&libraries=services";
+const KAKAO_SDK_URL = "//dapi.kakao.com/v2/maps/sdk.js?appkey=42c2269af0526cb8e15cc15e95efb23c&libraries=services&autoload=false";
 
 export function useKakaoMaps() {
   const [ready, setReady] = useState<boolean>(
@@ -19,22 +19,34 @@ export function useKakaoMaps() {
     if (loadingPromiseRef.current) return loadingPromiseRef.current;
 
     loadingPromiseRef.current = new Promise<void>((resolve, reject) => {
-      const markReady = () => {
-        // Try to run maps.load if available to ensure full init
-        if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
-          window.kakao.maps.load(() => {
-            setReady(!!(window.kakao && window.kakao.maps && window.kakao.maps.services));
-            resolve();
-          });
+      const finalize = () => {
+        const hasServices = !!(window.kakao && window.kakao.maps && window.kakao.maps.services);
+        if (!hasServices) {
+          reject(new Error('Kakao Maps services not available'));
           return;
         }
-        setReady(!!(window.kakao && window.kakao.maps && window.kakao.maps.services));
+        setReady(true);
         resolve();
+      };
+
+      const loadMaps = () => {
+        if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
+          window.kakao.maps.load(finalize);
+        } else {
+          // Fallback: wait a tick and check again
+          setTimeout(() => {
+            if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
+              window.kakao.maps.load(finalize);
+            } else {
+              finalize();
+            }
+          }, 0);
+        }
       };
 
       // If kakao object is already present
       if (window.kakao && window.kakao.maps) {
-        markReady();
+        loadMaps();
         return;
       }
 
@@ -47,15 +59,15 @@ export function useKakaoMaps() {
         script = document.createElement('script');
         script.src = KAKAO_SDK_URL;
         script.async = true;
-        script.onload = markReady;
+        script.onload = loadMaps;
         script.onerror = () => reject(new Error('Kakao Maps SDK load failed'));
         document.head.appendChild(script);
       } else {
-        script.addEventListener('load', markReady, { once: true });
+        script.addEventListener('load', loadMaps, { once: true });
         script.addEventListener('error', () => reject(new Error('Kakao Maps SDK load failed')), { once: true });
         // If it was already loaded before listeners attached
-        if ((script as any).readyState === 'complete') {
-          markReady();
+        if ((script as any).readyState === 'complete' || (window as any).kakao?.maps) {
+          loadMaps();
         }
       }
     });

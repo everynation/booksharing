@@ -151,6 +151,54 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     });
   };
 
+  // 지역 접두사 목록 기반 보정 검색 (위치 권한이 없을 때 대비)
+  const REGION_PREFIXES = [
+    '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
+    '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남',
+    '제주', '제주특별자치도'
+  ];
+
+  const fallbackWithRegionPrefixes = async (originalQuery: string): Promise<boolean> => {
+    if (!window.kakao?.maps?.services) return false;
+    try {
+      await ensureLoaded();
+    } catch {
+      return false;
+    }
+
+    const places = new window.kakao.maps.services.Places();
+    // 도로명/지명으로 보이는 짧은 쿼리일 때만 시/도 접두사 보정
+    const isLikelyRoadOrPlace = /^[가-힣A-Za-z0-9\s]+$/.test(originalQuery) && originalQuery.length <= 10;
+    const targetPrefixes = isLikelyRoadOrPlace ? REGION_PREFIXES : REGION_PREFIXES.slice(0, 8);
+
+    for (const prefix of targetPrefixes) {
+      const ok = await new Promise<boolean>((resolve) => {
+        const q = `${prefix} ${originalQuery}`.trim();
+        places.keywordSearch(
+          q,
+          (results: any[], status: any) => {
+            if (status === window.kakao.maps.services.Status.OK && results.length > 0) {
+              const mapped = results.slice(0, 10).map((p: any) => ({
+                address_name: p.address_name,
+                road_address_name: p.road_address_name,
+                place_name: p.place_name,
+                x: p.x,
+                y: p.y,
+              }));
+              setSearchResults(mapped);
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          }
+        );
+      });
+      if (ok) return true;
+    }
+
+    return false;
+  };
+
   const searchAddresses = async (query: string) => {
     if (!query.trim()) return;
 
@@ -198,10 +246,13 @@ export const AddressInput: React.FC<AddressInputProps> = ({
                (async () => {
                  const retried = await retryWithLocalPrefix(query);
                  if (!retried) {
-                   setSearchResults([]);
-                   // show toast only when it's an error, not just no results
-                   if (placeStatus !== window.kakao.maps.services.Status.ZERO_RESULT) {
-                     toast({ title: '검색 실패', description: '검색 결과가 없거나 오류가 발생했습니다.' });
+                   const prefixed = await fallbackWithRegionPrefixes(query);
+                   if (!prefixed) {
+                     setSearchResults([]);
+                     // show toast only when it's an error, not just no results
+                     if (placeStatus !== window.kakao.maps.services.Status.ZERO_RESULT) {
+                       toast({ title: '검색 실패', description: '검색 결과가 없거나 오류가 발생했습니다.' });
+                     }
                    }
                  }
                  setLoading(false);

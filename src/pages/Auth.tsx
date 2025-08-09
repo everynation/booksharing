@@ -179,6 +179,33 @@ const Auth = () => {
     }
   };
 
+  const handleKakaoLogin = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'kakao',
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      if (error) {
+        toast({
+          title: "카카오 로그인 오류",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "오류가 발생했습니다",
+        description: "다시 시도해 주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-accent/20 p-4">
       <div className="w-full max-w-md">
@@ -275,6 +302,23 @@ const Auth = () => {
                     >
                       비밀번호를 잊으셨나요?
                     </Button>
+                    <div className="relative my-4">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs">
+                        <span className="bg-card px-2 text-muted-foreground">또는</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      className="w-full"
+                      variant="secondary"
+                      onClick={handleKakaoLogin}
+                      disabled={loading}
+                    >
+                      카카오로 계속하기
+                    </Button>
                   </form>
                 )}
               </TabsContent>
@@ -333,6 +377,23 @@ const Auth = () => {
                     variant="warm"
                   >
                     {loading ? "가입 중..." : "회원가입"}
+                  </Button>
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-card px-2 text-muted-foreground">또는</span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    variant="secondary"
+                    onClick={handleKakaoLogin}
+                    disabled={loading}
+                  >
+                    카카오로 계속하기
                   </Button>
                 </form>
               </TabsContent>

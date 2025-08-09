@@ -88,6 +88,69 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     }
   }, [showMap, selectedCoordinates, isSearchOpen]);
 
+  // 지역(시/도, 시/군/구) 접두사를 붙여 재검색하는 보조 함수
+  const retryWithLocalPrefix = async (originalQuery: string): Promise<boolean> => {
+    if (!userLocation || !window.kakao?.maps?.services) return false;
+    try {
+      await ensureLoaded();
+    } catch {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      // 좌표 -> 행정구역 이름 조회
+      geocoder.coord2RegionCode(
+        userLocation.lng,
+        userLocation.lat,
+        (regions: any[], status: any) => {
+          if (status !== window.kakao.maps.services.Status.OK || !regions?.length) {
+            resolve(false);
+            return;
+          }
+          const r = regions.find((x: any) => x.region_type === 'H') || regions[0];
+          const prefix = [r.region_1depth_name, r.region_2depth_name].filter(Boolean).join(' ');
+          const prefixedQuery = `${prefix} ${originalQuery}`;
+
+          // 1) 주소 지오코딩 시도
+          geocoder.addressSearch(prefixedQuery, (addrResults: AddressResult[], addrStatus: any) => {
+            if (addrStatus === window.kakao.maps.services.Status.OK && addrResults.length > 0) {
+              setSearchResults(addrResults.slice(0, 10));
+              resolve(true);
+            } else {
+              // 2) 키워드 검색 재시도 (지역 편향 포함)
+              const places = new window.kakao.maps.services.Places();
+              const opts: any = {};
+              try {
+                opts.location = new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng);
+                opts.radius = 20000;
+              } catch {}
+              places.keywordSearch(
+                prefixedQuery,
+                (placeResults: any[], placeStatus: any) => {
+                  if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
+                    const mapped = placeResults.slice(0, 10).map((p: any) => ({
+                      address_name: p.address_name,
+                      road_address_name: p.road_address_name,
+                      place_name: p.place_name,
+                      x: p.x,
+                      y: p.y,
+                    }));
+                    setSearchResults(mapped);
+                    resolve(true);
+                  } else {
+                    resolve(false);
+                  }
+                },
+                opts
+              );
+            }
+          });
+        }
+      );
+    });
+  };
+
   const searchAddresses = async (query: string) => {
     if (!query.trim()) return;
 
@@ -120,25 +183,31 @@ export const AddressInput: React.FC<AddressInputProps> = ({
               opts.radius = 20000; // 20km 반경 내 우선 검색
             }
           } catch {}
-          places.keywordSearch(query, (placeResults: any[], placeStatus: any) => {
-            if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
-              const mapped = placeResults.slice(0, 10).map((p: any) => ({
-                address_name: p.address_name,
-                road_address_name: p.road_address_name,
-                place_name: p.place_name,
-                x: p.x,
-                y: p.y,
-              }));
-              setSearchResults(mapped);
-            } else {
-              setSearchResults([]);
-              // show toast only when it's an error, not just no results
-              if (placeStatus !== window.kakao.maps.services.Status.ZERO_RESULT) {
-                toast({ title: '검색 실패', description: '검색 결과가 없거나 오류가 발생했습니다.' });
-              }
-            }
-            setLoading(false);
-          }, opts);
+           places.keywordSearch(query, (placeResults: any[], placeStatus: any) => {
+             if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
+               const mapped = placeResults.slice(0, 10).map((p: any) => ({
+                 address_name: p.address_name,
+                 road_address_name: p.road_address_name,
+                 place_name: p.place_name,
+                 x: p.x,
+                 y: p.y,
+               }));
+               setSearchResults(mapped);
+               setLoading(false);
+             } else {
+               (async () => {
+                 const retried = await retryWithLocalPrefix(query);
+                 if (!retried) {
+                   setSearchResults([]);
+                   // show toast only when it's an error, not just no results
+                   if (placeStatus !== window.kakao.maps.services.Status.ZERO_RESULT) {
+                     toast({ title: '검색 실패', description: '검색 결과가 없거나 오류가 발생했습니다.' });
+                   }
+                 }
+                 setLoading(false);
+               })();
+             }
+           }, opts);
         }
       });
     } catch (error) {

@@ -39,6 +39,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   const [searchResults, setSearchResults] = useState<AddressResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { ready: kakaoReady, ensureLoaded } = useKakaoMaps();
 
   const { toast } = useToast();
@@ -51,6 +52,16 @@ export const AddressInput: React.FC<AddressInputProps> = ({
       });
     }
   }, []);
+  useEffect(() => {
+    if (!isSearchOpen || userLocation) return;
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, [isSearchOpen, userLocation]);
   useEffect(() => {
     // 선택된 좌표가 있으면 미니 맵을 표시
     if (!showMap || !selectedCoordinates) return;
@@ -102,6 +113,13 @@ export const AddressInput: React.FC<AddressInputProps> = ({
           setLoading(false);
         } else {
           const places = new window.kakao.maps.services.Places();
+          const opts: any = {};
+          try {
+            if (userLocation && window.kakao?.maps) {
+              opts.location = new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng);
+              opts.radius = 20000; // 20km 반경 내 우선 검색
+            }
+          } catch {}
           places.keywordSearch(query, (placeResults: any[], placeStatus: any) => {
             if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
               const mapped = placeResults.slice(0, 10).map((p: any) => ({
@@ -120,7 +138,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
               }
             }
             setLoading(false);
-          });
+          }, opts);
         }
       });
     } catch (error) {
@@ -138,6 +156,13 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     if (window.kakao?.maps?.services) {
       setLoading(true);
       const places = new window.kakao.maps.services.Places();
+      const opts: any = {};
+      try {
+        if (userLocation && window.kakao?.maps) {
+          opts.location = new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng);
+          opts.radius = 20000; // 20km
+        }
+      } catch {}
       places.keywordSearch(searchQuery, (placeResults: any[], placeStatus: any) => {
         if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
           const mapped = placeResults.slice(0, 10).map((p: any) => ({
@@ -153,7 +178,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
           // fallback to address geocoding for full road-name queries
           searchAddresses(searchQuery);
         }
-      });
+      }, opts);
     } else {
       searchAddresses(searchQuery);
     }

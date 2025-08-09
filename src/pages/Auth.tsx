@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Book } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
+import { useAuth } from "@/hooks/useAuth";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -19,6 +20,14 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      toast({ title: "로그인 성공", description: "환영합니다!" });
+      navigate("/books");
+    }
+  }, [authLoading, session, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -79,6 +79,8 @@ const Auth = () => {
           .from('profiles')
           .update({
             address: address,
+            latitude: addressCoordinates?.lat || null,
+            longitude: addressCoordinates?.lng || null,
           })
           .eq('user_id', authData.user.id);
 

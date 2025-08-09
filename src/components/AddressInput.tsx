@@ -45,6 +45,31 @@ export const AddressInput: React.FC<AddressInputProps> = ({
       });
     }
   }, []);
+  useEffect(() => {
+    // 선택된 좌표가 있으면 미니 맵을 표시
+    if (!showMap || !selectedCoordinates) return;
+    if (!window.kakao || !window.kakao.maps) return;
+
+    const renderMap = () => {
+      const container = document.getElementById('kakao-map');
+      if (!container) return;
+      const center = new window.kakao.maps.LatLng(
+        selectedCoordinates.lat,
+        selectedCoordinates.lng
+      );
+      const map = new window.kakao.maps.Map(container, {
+        center,
+        level: 3,
+      });
+      new window.kakao.maps.Marker({ position: center, map });
+    };
+
+    if (window.kakao.maps.load) {
+      window.kakao.maps.load(renderMap);
+    } else {
+      renderMap();
+    }
+  }, [showMap, selectedCoordinates, isSearchOpen]);
 
   const searchAddresses = async (query: string) => {
     if (!query.trim() || !window.kakao) return;
@@ -80,7 +105,6 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     
     onChange(address, coordinates);
     setSelectedCoordinates(coordinates);
-    setIsSearchOpen(false);
     setSearchQuery('');
     setSearchResults([]);
   };

@@ -385,6 +385,7 @@ const Auth = () => {
                         setAddressCoordinates(coordinates || null);
                       }}
                       placeholder="주소를 검색하세요"
+                      showMap
                     />
                   </div>
                   <Button 

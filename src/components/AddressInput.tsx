@@ -130,8 +130,33 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     }
   };
 
-  const handleSearch = () => {
-    searchAddresses(searchQuery);
+  const handleSearch = async () => {
+    try {
+      await ensureLoaded();
+    } catch {}
+
+    if (window.kakao?.maps?.services) {
+      setLoading(true);
+      const places = new window.kakao.maps.services.Places();
+      places.keywordSearch(searchQuery, (placeResults: any[], placeStatus: any) => {
+        if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
+          const mapped = placeResults.slice(0, 10).map((p: any) => ({
+            address_name: p.address_name,
+            road_address_name: p.road_address_name,
+            place_name: p.place_name,
+            x: p.x,
+            y: p.y,
+          }));
+          setSearchResults(mapped);
+          setLoading(false);
+        } else {
+          // fallback to address geocoding for full road-name queries
+          searchAddresses(searchQuery);
+        }
+      });
+    } else {
+      searchAddresses(searchQuery);
+    }
   };
 
   const handleSelectAddress = (result: AddressResult) => {

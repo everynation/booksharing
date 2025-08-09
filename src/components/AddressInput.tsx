@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { useKakaoMaps } from '@/hooks/useKakaoMaps';
 
 declare global {
   interface Window {
@@ -38,6 +39,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   const [searchResults, setSearchResults] = useState<AddressResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const { ready: kakaoReady, ensureLoaded } = useKakaoMaps();
 
   const { toast } = useToast();
 
@@ -77,6 +79,13 @@ export const AddressInput: React.FC<AddressInputProps> = ({
 
   const searchAddresses = async (query: string) => {
     if (!query.trim()) return;
+
+    try {
+      await ensureLoaded();
+    } catch (e) {
+      toast({ title: '카카오 지도 로딩 실패', description: '잠시 후 다시 시도해주세요.' });
+      return;
+    }
 
     if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
       toast({ title: '카카오 지도 준비 중', description: '잠시 후 다시 시도해주세요.' });

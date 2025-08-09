@@ -4,6 +4,51 @@
 
 **URL**: https://lovable.dev/projects/0f4a227d-da40-49e6-b08f-ccafc2bd5e48
 
+## 🚀 자동 저장 기능
+
+이 프로젝트는 GitHub에 자동으로 commit하고 push하는 기능을 제공합니다.
+
+### 사용 가능한 자동화 스크립트
+
+1. **기본 자동 저장**
+   ```bash
+   npm run auto-save
+   ```
+
+2. **빠른 저장 (Bash 스크립트)**
+   ```bash
+   npm run quick-save
+   # 또는
+   ./scripts/auto-commit.sh "커스텀 메시지"
+   ```
+
+3. **Node.js 기반 저장**
+   ```bash
+   npm run node-save
+   # 또는
+   node scripts/auto-commit.js "커스텀 메시지"
+   ```
+
+4. **파일 변경 감지 자동 저장** (nodemon 필요)
+   ```bash
+   npm run watch-save
+   ```
+
+5. **수동 단계별 저장**
+   ```bash
+   npm run commit  # 커밋만
+   npm run push    # 푸시만
+   npm run save    # 커밋 + 푸시
+   ```
+
+### 자동화 스크립트 특징
+
+- ✅ 변경사항이 없으면 자동으로 건너뜀
+- ✅ 타임스탬프가 포함된 기본 커밋 메시지
+- ✅ 커스텀 커밋 메시지 지원
+- ✅ 에러 처리 및 로깅
+- ✅ 한국어 시간 형식 지원
+
 ## How can I edit this code?
 
 There are several ways of editing your application.

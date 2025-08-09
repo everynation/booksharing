@@ -182,10 +182,11 @@ const Auth = () => {
   const handleKakaoLogin = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
           redirectTo: `${window.location.origin}/auth`,
+          skipBrowserRedirect: true,
         },
       });
       if (error) {
@@ -194,6 +195,13 @@ const Auth = () => {
           description: error.message,
           variant: "destructive",
         });
+      } else if (data?.url) {
+        // Open in a new tab to avoid iframe/X-Frame-Options issues in the editor preview
+        const newWin = window.open(data.url, "_blank", "noopener,noreferrer");
+        if (!newWin) {
+          // Fallback if popup was blocked
+          window.location.href = data.url;
+        }
       }
     } catch (error) {
       toast({

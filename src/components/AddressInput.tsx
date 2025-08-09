@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 
 declare global {
   interface Window {
@@ -12,8 +13,9 @@ declare global {
 }
 
 interface AddressResult {
-  address_name: string;
+  address_name?: string;
   road_address_name?: string;
+  place_name?: string;
   x: string; // longitude
   y: string; // latitude
 }
@@ -36,6 +38,8 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   const [searchResults, setSearchResults] = useState<AddressResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+
+  const { toast } = useToast();
 
   useEffect(() => {
     // Kakao Maps API 초기화
@@ -72,22 +76,47 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   }, [showMap, selectedCoordinates, isSearchOpen]);
 
   const searchAddresses = async (query: string) => {
-    if (!query.trim() || !window.kakao) return;
+    if (!query.trim()) return;
+
+    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+      toast({ title: '카카오 지도 준비 중', description: '잠시 후 다시 시도해주세요.' });
+      return;
+    }
 
     setLoading(true);
     try {
       const geocoder = new window.kakao.maps.services.Geocoder();
-      
+
       geocoder.addressSearch(query, (results: AddressResult[], status: any) => {
-        if (status === window.kakao.maps.services.Status.OK) {
+        if (status === window.kakao.maps.services.Status.OK && results.length > 0) {
           setSearchResults(results.slice(0, 10)); // 최대 10개 결과
+          setLoading(false);
         } else {
-          setSearchResults([]);
+          const places = new window.kakao.maps.services.Places();
+          places.keywordSearch(query, (placeResults: any[], placeStatus: any) => {
+            if (placeStatus === window.kakao.maps.services.Status.OK && placeResults.length > 0) {
+              const mapped = placeResults.slice(0, 10).map((p: any) => ({
+                address_name: p.address_name,
+                road_address_name: p.road_address_name,
+                place_name: p.place_name,
+                x: p.x,
+                y: p.y,
+              }));
+              setSearchResults(mapped);
+            } else {
+              setSearchResults([]);
+              // show toast only when it's an error, not just no results
+              if (placeStatus !== window.kakao.maps.services.Status.ZERO_RESULT) {
+                toast({ title: '검색 실패', description: '검색 결과가 없거나 오류가 발생했습니다.' });
+              }
+            }
+            setLoading(false);
+          });
         }
-        setLoading(false);
       });
     } catch (error) {
       console.error('Address search error:', error);
+      toast({ title: '오류', description: '주소 검색 중 오류가 발생했습니다.' });
       setLoading(false);
     }
   };
@@ -97,11 +126,11 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   };
 
   const handleSelectAddress = (result: AddressResult) => {
-    const address = result.road_address_name || result.address_name;
-    const coordinates = {
-      lat: parseFloat(result.y),
-      lng: parseFloat(result.x)
-    };
+  const address = result.road_address_name || result.address_name || result.place_name || '';
+  const coordinates = {
+    lat: parseFloat(result.y),
+    lng: parseFloat(result.x)
+  };
     
     onChange(address, coordinates);
     setSelectedCoordinates(coordinates);
@@ -145,6 +174,9 @@ export const AddressInput: React.FC<AddressInputProps> = ({
               <MapPin className="h-5 w-5" />
               주소 검색
             </DialogTitle>
+            <DialogDescription>
+              도로명/지번 또는 장소명을 입력하고 검색을 눌러주세요.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -177,10 +209,12 @@ export const AddressInput: React.FC<AddressInputProps> = ({
                   >
                     <CardContent className="p-3">
                       <div className="space-y-1">
-                        {result.road_address_name && (
-                          <p className="font-medium text-sm">{result.road_address_name}</p>
+                        {(result.road_address_name || result.place_name) && (
+                          <p className="font-medium text-sm">{result.road_address_name || result.place_name}</p>
                         )}
-                        <p className="text-xs text-muted-foreground">{result.address_name}</p>
+                        {result.address_name && (
+                          <p className="text-xs text-muted-foreground">{result.address_name}</p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

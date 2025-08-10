@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin } from 'lucide-react';
+import { Search, MapPin, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 declare global {
   interface Window {
@@ -39,11 +40,15 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   const [loading, setLoading] = useState(false);
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [kakaoReady, setKakaoReady] = useState(false);
+  const [kakaoError, setKakaoError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   // Kakao Maps API 직접 로딩
   const loadKakaoMaps = useCallback(async (): Promise<void> => {
     console.log("[AddressInput] loadKakaoMaps called");
+    console.log("[AddressInput] Current hostname:", window.location.hostname);
+    console.log("[AddressInput] Current origin:", window.location.origin);
     
     if (kakaoReady) {
       console.log("[AddressInput] Kakao Maps already ready");
@@ -57,6 +62,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
       if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
         console.log("[AddressInput] Kakao Maps already loaded");
         setKakaoReady(true);
+        setKakaoError(null);
         resolve();
         return;
       }
@@ -65,6 +71,13 @@ export const AddressInput: React.FC<AddressInputProps> = ({
       const getApiKey = () => {
         const hostname = window.location.hostname;
         console.log("[AddressInput] Current hostname:", hostname);
+        
+        // lovable 도메인 체크
+        if (hostname.includes('lovable')) {
+          console.log("[AddressInput] Detected lovable domain, using specific API key");
+          // lovable 도메인용 API 키 (실제 등록된 키로 교체 필요)
+          return '42c2269af0526cb8e15cc15e95efb23c';
+        }
         
         // 환경변수에서 API 키 가져오기
         const apiKey = process.env.VITE_KAKAO_MAPS_API_KEY || '42c2269af0526cb8e15cc15e95efb23c';
@@ -92,17 +105,22 @@ export const AddressInput: React.FC<AddressInputProps> = ({
             window.kakao.maps.load(() => {
               console.log("[AddressInput] Kakao Maps API loaded successfully");
               setKakaoReady(true);
+              setKakaoError(null);
               resolve();
             });
           } else {
-            console.error("[AddressInput] Kakao Maps load function not available");
-            reject(new Error('Kakao Maps load function not available'));
+            const error = 'Kakao Maps load function not available';
+            console.error("[AddressInput]", error);
+            setKakaoError(error);
+            reject(new Error(error));
           }
         };
         
         script.onerror = (error) => {
-          console.error("[AddressInput] Kakao Maps script load failed:", error);
-          reject(new Error('Kakao Maps SDK load failed'));
+          const errorMsg = 'Kakao Maps SDK load failed';
+          console.error("[AddressInput]", errorMsg, error);
+          setKakaoError(errorMsg);
+          reject(new Error(errorMsg));
         };
         
         document.head.appendChild(script);
@@ -112,6 +130,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
           window.kakao.maps.load(() => {
             console.log("[AddressInput] Kakao Maps API loaded from existing script");
             setKakaoReady(true);
+            setKakaoError(null);
             resolve();
           });
         } else {
@@ -121,16 +140,33 @@ export const AddressInput: React.FC<AddressInputProps> = ({
               window.kakao.maps.load(() => {
                 console.log("[AddressInput] Kakao Maps API loaded from existing script");
                 setKakaoReady(true);
+                setKakaoError(null);
                 resolve();
               });
             } else {
-              reject(new Error('Kakao Maps not properly loaded'));
+              const error = 'Kakao Maps not properly loaded';
+              setKakaoError(error);
+              reject(new Error(error));
             }
           }, { once: true });
         }
       }
     });
   }, [kakaoReady]);
+
+  // Kakao Maps 재시도 로직
+  const retryKakaoMaps = useCallback(async () => {
+    console.log("[AddressInput] Retrying Kakao Maps loading...");
+    setRetryCount(prev => prev + 1);
+    setKakaoError(null);
+    
+    try {
+      await loadKakaoMaps();
+    } catch (error) {
+      console.error("[AddressInput] Retry failed:", error);
+      setKakaoError(error instanceof Error ? error.message : 'Unknown error');
+    }
+  }, [loadKakaoMaps]);
 
   useEffect(() => {
     console.log("[AddressInput] Component mounted");
@@ -139,6 +175,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     // 컴포넌트 마운트 시 Kakao Maps 로딩 시도
     loadKakaoMaps().catch((error) => {
       console.error("[AddressInput] Failed to load Kakao Maps on mount:", error);
+      setKakaoError(error instanceof Error ? error.message : 'Unknown error');
     });
   }, [loadKakaoMaps]);
 
@@ -148,7 +185,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     
     const searchCoordinatesForAddress = async () => {
       try {
-        await loadKakaoMaps(); // 이 부분도 loadKakaoMaps로 변경
+        await loadKakaoMaps();
         
         if (!window.kakao?.maps?.services) {
           console.log("[AddressInput] Kakao Maps services not available for coordinate search");
@@ -173,7 +210,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     };
 
     searchCoordinatesForAddress();
-  }, [value, selectedCoordinates, loadKakaoMaps]); // loadKakaoMaps 추가
+  }, [value, selectedCoordinates, loadKakaoMaps]);
 
   useEffect(() => {
     // 선택된 좌표가 있으면 미니 맵을 표시
@@ -181,7 +218,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
 
     const renderMap = async () => {
       try {
-        await loadKakaoMaps(); // 이 부분도 loadKakaoMaps로 변경
+        await loadKakaoMaps();
         
         const container = document.getElementById('kakao-map');
         if (!container) {
@@ -211,13 +248,12 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     };
 
     renderMap();
-  }, [selectedCoordinates, showMap, loadKakaoMaps]); // loadKakaoMaps 추가
+  }, [selectedCoordinates, showMap, loadKakaoMaps]);
 
   const handleSearch = async () => {
     console.log("[AddressInput] handleSearch function called!");
     console.log("[AddressInput] Search query:", searchQuery);
     console.log("[AddressInput] Kakao Maps ready state:", kakaoReady);
-    console.log("[AddressInput] loadKakaoMaps function:", loadKakaoMaps);
     
     if (!searchQuery.trim()) {
       console.log("Search query is empty.");
@@ -231,16 +267,6 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     try {
       // Kakao Maps API가 완전히 로드될 때까지 대기
       console.log("[AddressInput] Ensuring Kakao Maps is loaded...");
-      console.log("[AddressInput] About to call loadKakaoMaps()...");
-      
-      // loadKakaoMaps 함수가 실제로 존재하는지 확인
-      if (typeof loadKakaoMaps !== 'function') {
-        console.error("[AddressInput] loadKakaoMaps is not a function:", loadKakaoMaps);
-        toast({ title: '오류', description: 'Kakao Maps 로딩 함수를 찾을 수 없습니다.' });
-        setLoading(false);
-        return;
-      }
-      
       await loadKakaoMaps();
       console.log("[AddressInput] Kakao Maps SDK is loaded.");
   
@@ -253,7 +279,10 @@ export const AddressInput: React.FC<AddressInputProps> = ({
         console.error("[AddressInput] window.kakao:", window.kakao);
         console.error("[AddressInput] window.kakao?.maps:", window.kakao?.maps);
         console.error("[AddressInput] window.kakao?.maps?.services:", window.kakao?.maps?.services);
-        toast({ title: '카카오 지도 준비 중', description: '서비스를 로드할 수 없습니다.' });
+        
+        const errorMsg = '카카오 지도 서비스를 로드할 수 없습니다. 잠시 후 다시 시도해주세요.';
+        toast({ title: '카카오 지도 준비 중', description: errorMsg });
+        setKakaoError(errorMsg);
         setLoading(false);
         return;
       }
@@ -341,7 +370,9 @@ export const AddressInput: React.FC<AddressInputProps> = ({
 
     } catch (error) {
       console.error('[AddressInput] Search error:', error);
-      toast({ title: '오류', description: '주소 검색 중 예외가 발생했습니다.' });
+      const errorMsg = error instanceof Error ? error.message : '주소 검색 중 예외가 발생했습니다.';
+      toast({ title: '오류', description: errorMsg });
+      setKakaoError(errorMsg);
       setLoading(false);
     }
   };
@@ -367,6 +398,45 @@ export const AddressInput: React.FC<AddressInputProps> = ({
       handleSearch();
     }
   };
+
+  // Kakao Maps 에러 상태 표시
+  if (kakaoError && !kakaoReady) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            카카오 지도를 로드할 수 없습니다. 
+            <Button 
+              variant="link" 
+              className="p-0 h-auto font-normal text-destructive underline"
+              onClick={retryKakaoMaps}
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+        <div className="relative">
+          <Input
+            value={value}
+            placeholder={placeholder}
+            readOnly
+            disabled
+            className="cursor-not-allowed pr-10 opacity-50"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+            disabled
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -420,10 +490,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
                 className="flex-1"
               />
               <Button 
-                onClick={() => {
-                  console.log("[AddressInput] Search button clicked!");
-                  handleSearch();
-                }} 
+                onClick={handleSearch} 
                 disabled={!searchQuery.trim() || loading}
                 size="sm"
               >

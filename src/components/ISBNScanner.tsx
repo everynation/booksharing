@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { NotFoundException } from '@zxing/library';
+import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { NotFoundException, DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Camera, X, CheckCircle, Scan } from 'lucide-react';
+import { Camera, X, Scan, Sun, ZoomIn, ZoomOut } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 interface ISBNScannerProps {
   onScan: (isbn: string) => void;
@@ -13,140 +14,148 @@ interface ISBNScannerProps {
 
 export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpen }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [controlsRef, setControlsRef] = useState<any>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoomSupported, setZoomSupported] = useState(false);
+  const [zoom, setZoom] = useState<number>(1);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number }>({ min: 1, max: 1, step: 0.1 });
+
+  const applyAdvancedCameraFeatures = async (track: MediaStreamTrack) => {
+    try {
+      // 자동 초점 시도
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      console.log('Continuous focus mode applied.');
+    } catch (e) {
+      console.warn('Continuous focus mode not supported.', e);
+    }
+
+    try {
+      const capabilities = track.getCapabilities();
+      if (capabilities) {
+        // 손전등 기능 확인
+        if (capabilities.torch) {
+          setTorchAvailable(true);
+        }
+        // 줌 기능 확인
+        if (capabilities.zoom) {
+          setZoomSupported(true);
+          const { min, max, step } = capabilities.zoom;
+          setZoomRange({ min, max, step });
+          setZoom(track.getSettings().zoom ?? 1);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not get camera capabilities.', e);
+    }
+  };
+  
+  const toggleTorch = async () => {
+    if (!controlsRef.current) return;
+    try {
+      await controlsRef.current.switchTorch();
+      setTorchOn(prev => !prev);
+    } catch (e) {
+      console.error('Failed to toggle torch', e);
+    }
+  };
+
+  const handleZoomChange = async (value: number) => {
+    if (!controlsRef.current) return;
+    setZoom(value);
+    try {
+      await controlsRef.current.setZoom(value);
+    } catch (e) {
+      console.error('Failed to set zoom', e);
+    }
+  };
 
   useEffect(() => {
-    let codeReader: BrowserMultiFormatReader | null = null;
-    let isActive = true;
-
-    const startScanner = async () => {
-      if (!isOpen || !videoRef.current || !isActive) return;
-
-      try {
-        setError(null);
-        setIsScanning(true);
-
-        // 안드로이드 호환성을 위한 더 간단한 카메라 설정
-        const constraints = {
-          video: {
-            facingMode: 'environment', // ideal 대신 직접 지정
-            width: { min: 320, ideal: 640, max: 1280 },
-            height: { min: 240, ideal: 480, max: 720 }
-          }
-        };
-
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-        } catch (error) {
-          console.log('후면 카메라 접근 실패, 기본 카메라로 시도:', error);
-          // 더 기본적인 제약조건으로 fallback
-          const fallbackConstraints = {
-            video: true
-          };
-          stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+    if (!isOpen) {
+        // 컴포넌트가 닫힐 때 스캐너 정리
+        if (controlsRef.current) {
+            controlsRef.current.stop();
+            controlsRef.current = null;
         }
-
-        if (!isActive || !videoRef.current) {
-          // 컴포넌트가 언마운트된 경우 스트림 정리
-          stream.getTracks().forEach(track => track.stop());
-          return;
-        }
-
-        videoRef.current.srcObject = stream;
-
-        // 비디오가 로드될 때까지 기다림
-        await new Promise((resolve) => {
-          const video = videoRef.current;
-          if (video && video.readyState >= 2) {
-            resolve(void 0);
-          } else if (video) {
-            video.onloadeddata = () => resolve(void 0);
-          }
-        });
-
-        if (!isActive) return;
-
-        codeReader = new BrowserMultiFormatReader();
-
-        // 안드로이드에서 더 안정적인 스캔 루프
-        const scanLoop = async () => {
-          if (!codeReader || !videoRef.current || !isActive) return;
-          
-          try {
-            // 안드로이드에서 더 안정적인 디코딩
-            const result = await codeReader.decodeOnceFromVideoDevice(undefined, videoRef.current);
-            
-            if (result && isActive) {
-              const text = result.getText();
-              console.log('Scanned code:', text);
-              
-              // ISBN 패턴 검증 (더 유연한 패턴)
-              const cleanText = text.replace(/[-\s]/g, '');
-              const isbnPattern = /^(?:97[89])?\d{9}[\dX]$/i;
-              
-              if (isbnPattern.test(cleanText)) {
-                onScan(cleanText);
-                stopScanner();
-                onClose();
-                return;
-              }
-            }
-          } catch (err) {
-            // NotFoundException은 정상적인 상황
-            if (err && !(err instanceof NotFoundException)) {
-              console.error('Scanner error:', err);
-            }
-          }
-          
-          // 안드로이드에서 더 긴 간격으로 재시도
-          if (isActive && isScanning) {
-            setTimeout(scanLoop, 200);
-          }
-        };
-
-        // 스캔 루프 시작
-        setTimeout(scanLoop, 500); // 초기 지연
-
-      } catch (err) {
-        console.error('Error starting scanner:', err);
-        if (isActive) {
-          setError('카메라에 접근할 수 없습니다. 카메라 권한을 허용해주세요.');
-          setIsScanning(false);
-        }
-      }
-    };
-
-    const stopScanner = () => {
-      setIsScanning(false);
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      codeReader = null;
-    };
-
-    if (isOpen) {
-      startScanner();
-    } else {
-      stopScanner();
+        codeReaderRef.current = null;
+        setIsScanning(false);
+        return;
     }
+
+    if (!videoRef.current || isScanning) return;
+    
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8]);
+    const codeReader = new BrowserMultiFormatReader(hints);
+    codeReaderRef.current = codeReader;
+    setIsScanning(true);
+
+    const startScan = async () => {
+        try {
+            setError(null);
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                }
+            });
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                
+                const track = stream.getVideoTracks()[0];
+                if (track) {
+                    await applyAdvancedCameraFeatures(track);
+                }
+            }
+
+            // decodeFromVideoDevice는 지속적인 스캔을 제공합니다.
+            controlsRef.current = await codeReader.decodeFromVideoDevice(
+                undefined, // Use default camera
+                videoRef.current,
+                (result, err, controls) => {
+                    if (result) {
+                        const text = result.getText();
+                        const cleanText = text.replace(/[-\s]/g, '');
+                        const isbnPattern = /^(?:97[89])?\d{9}[\dX]$/i;
+
+                        if (isbnPattern.test(cleanText)) {
+                            onScan(cleanText);
+                            controls.stop();
+                            controlsRef.current = null;
+                            onClose();
+                        }
+                    }
+
+                    if (err && !(err instanceof NotFoundException)) {
+                        console.error('Scanner error:', err);
+                        setError('스캔 중 오류가 발생했습니다.');
+                    }
+                }
+            );
+
+        } catch (err) {
+            console.error('Error starting scanner:', err);
+            setError('카메라에 접근할 수 없습니다. 권한을 확인해주세요.');
+            setIsScanning(false);
+        }
+    };
+
+    startScan();
 
     return () => {
-      stopScanner();
+        if (controlsRef.current) {
+            controlsRef.current.stop();
+            controlsRef.current = null;
+        }
+        setIsScanning(false);
     };
-  }, [isOpen, onScan, onClose, isScanning]);
-
-  const handleClose = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-    onClose();
-  };
+  }, [isOpen, onScan, onClose]);
 
   if (!isOpen) return null;
 
@@ -158,7 +167,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
             <Scan className="h-5 w-5 text-primary" />
             ISBN 바코드 스캔
           </h3>
-          <Button variant="ghost" size="sm" onClick={handleClose}>
+          <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -167,9 +176,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
           <div className="text-center py-8">
             <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-sm text-destructive mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>
-              다시 시도
-            </Button>
+            <Button onClick={() => window.location.reload()}>다시 시도</Button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -181,32 +188,39 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
                 muted
                 className="w-full h-full object-cover"
               />
-              
-              {/* 스캔 가이드 오버레이 */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="border-2 border-primary border-dashed w-3/4 h-1/2 rounded-lg animate-pulse">
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary"></div>
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary"></div>
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary"></div>
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary"></div>
-                </div>
+                <div className="border-2 border-primary border-dashed w-3/4 h-1/2 rounded-lg animate-pulse" />
               </div>
             </div>
+            <div className="absolute bottom-12 left-0 right-0 p-3 bg-black/40 backdrop-blur-sm">
+                <div className="flex items-center justify-between gap-3">
+                  {torchAvailable && (
+                    <Button variant="secondary" size="sm" onClick={toggleTorch} className="flex items-center gap-2">
+                      <Sun className="h-4 w-4" />
+                      <span>{torchOn ? '손전등 끄기' : '손전등 켜기'}</span>
+                    </Button>
+                  )}
 
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">
-                📚 책 뒷면의 ISBN 바코드를 스캔해주세요
-              </p>
-              {isScanning && (
-                <div className="flex items-center justify-center gap-2 text-primary">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                  <span className="text-sm">스캔 중...</span>
+                  {zoomSupported && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <ZoomOut className="h-4 w-4 text-muted-foreground" />
+                      <div className="w-40">
+                        <Slider
+                          value={[zoom]}
+                          min={zoomRange.min}
+                          max={zoomRange.max}
+                          step={zoomRange.step}
+                          onValueChange={(v) => handleZoomChange(v[0])}
+                        />
+                      </div>
+                      <ZoomIn className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="text-center text-xs text-muted-foreground">
-              <p>💡 팁: 바코드를 프레임 안에 맞추고 충분한 조명을 확보하세요</p>
+              </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">책 뒷면의 ISBN 바코드를 프레임 안에 맞춰주세요.</p>
+              {isScanning && <p className="text-sm text-primary animate-pulse">스캔 중...</p>}
             </div>
           </div>
         )}

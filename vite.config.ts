@@ -5,9 +5,21 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    // 환경변수 정의
+    'process.env.VITE_KAKAO_MAPS_API_KEY': JSON.stringify('42c2269af0526cb8e15cc15e95efb23c'),
+  },
   server: {
     host: "::",
     port: 8080,
+    open: true, // 자동으로 브라우저 열기
+    watch: {
+      usePolling: true, // 파일 변경 감지 개선
+      interval: 100, // 폴링 간격
+    },
+    hmr: {
+      overlay: true, // 에러 오버레이 표시
+    },
   },
   plugins: [
     react(),
@@ -18,5 +30,9 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  // 개발 시 소스맵 활성화
+  build: {
+    sourcemap: mode === 'development',
   },
 }));

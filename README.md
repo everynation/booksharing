@@ -4,6 +4,29 @@
 
 **URL**: https://lovable.dev/projects/0f4a227d-da40-49e6-b08f-ccafc2bd5e48
 
+## 🚀 실시간 개발
+
+### 가장 좋은 실시간 개발 방법
+
+1. **기본 실시간 개발** (추천)
+   ```bash
+   npm run dev:all
+   ```
+
+2. **자동 저장과 함께 실시간 개발**
+   ```bash
+   npm run dev:full
+   ```
+
+3. **수동 저장과 함께 실시간 개발**
+   ```bash
+   npm run dev:all
+   # 별도 터미널에서
+   npm run watch-save
+   ```
+
+자세한 내용은 [DEVELOPMENT.md](./DEVELOPMENT.md)를 참조하세요.
+
 ## 🚀 자동 저장 기능
 
 이 프로젝트는 GitHub에 자동으로 commit하고 push하는 기능을 제공합니다.

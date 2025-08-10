@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:open": "vite --open",
+    "dev:host": "vite --host",
+    "dev:all": "vite --host --open",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
@@ -15,7 +18,9 @@
     "auto-save": "git add . && git commit -m \"feat: 자동 저장 - $(date +'%Y-%m-%d %H:%M:%S')\" && git push origin main",
     "quick-save": "./scripts/auto-commit.sh",
     "node-save": "node scripts/auto-commit.js",
-    "watch-save": "nodemon --watch src --ext ts,tsx,js,jsx --exec \"npm run auto-save\""
+    "watch-save": "nodemon --watch src --ext ts,tsx,js,jsx --exec \"npm run auto-save\"",
+    "dev:watch": "npm run dev & npm run watch-save",
+    "dev:full": "npm run dev:all & npm run watch-save"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

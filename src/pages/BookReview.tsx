@@ -322,14 +322,32 @@ const BookReview = () => {
         <Card className="mb-8 border-0 shadow-soft hover:shadow-warm transition-all duration-300 bg-gradient-to-r from-background/50 to-accent/20 backdrop-blur-sm">
           <CardContent className="p-8">
             <div className="flex gap-6 items-start">
+              {/* 실제 사진 (사용자가 업로드한 이미지) */}
+              <div className="relative group">
+                <img
+                  src="https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=600&fit=crop&crop=center"
+                  alt={book.title}
+                  className="w-24 h-32 object-cover rounded-lg shadow-md group-hover:shadow-warm transition-shadow"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </div>
+              
+              {/* 데이터베이스에서 불러온 표지 (오른쪽 아래 작게 표시) */}
               {book.cover_image_url && (
-                <div className="relative group">
-                  <img
-                    src={book.cover_image_url}
-                    alt={book.title}
-                    className="w-24 h-32 object-cover rounded-lg shadow-md group-hover:shadow-warm transition-shadow"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute bottom-0 right-0">
+                  <div className="relative">
+                    <img
+                      src={book.cover_image_url}
+                      alt="DB 표지"
+                      className="w-8 h-10 object-cover rounded border border-white shadow-sm"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                      DB
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="flex-1">

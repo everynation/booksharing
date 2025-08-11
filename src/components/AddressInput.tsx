@@ -79,6 +79,12 @@ export const AddressInput: React.FC<AddressInputProps> = ({
           return '42c2269af0526cb8e15cc15e95efb23c';
         }
         
+        // localhost 또는 개발 환경
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          console.log("[AddressInput] Detected localhost, using development API key");
+          return '42c2269af0526cb8e15cc15e95efb23c';
+        }
+        
         // 환경변수에서 API 키 가져오기
         const apiKey = process.env.VITE_KAKAO_MAPS_API_KEY || '42c2269af0526cb8e15cc15e95efb23c';
         console.log("[AddressInput] Using API key from env:", apiKey);
@@ -154,19 +160,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     });
   }, [kakaoReady]);
 
-  // Kakao Maps 재시도 로직
-  const retryKakaoMaps = useCallback(async () => {
-    console.log("[AddressInput] Retrying Kakao Maps loading...");
-    setRetryCount(prev => prev + 1);
-    setKakaoError(null);
-    
-    try {
-      await loadKakaoMaps();
-    } catch (error) {
-      console.error("[AddressInput] Retry failed:", error);
-      setKakaoError(error instanceof Error ? error.message : 'Unknown error');
-    }
-  }, [loadKakaoMaps]);
+
 
   useEffect(() => {
     console.log("[AddressInput] Component mounted");
@@ -399,6 +393,17 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     }
   };
 
+  const retryKakaoMaps = async () => {
+    setKakaoError(null);
+    setRetryCount(prev => prev + 1);
+    try {
+      await loadKakaoMaps();
+    } catch (error) {
+      console.error('[AddressInput] Retry failed:', error);
+      setKakaoError('카카오 지도를 다시 로드할 수 없습니다.');
+    }
+  };
+
   // Kakao Maps 에러 상태 표시
   if (kakaoError && !kakaoReady) {
     return (
@@ -446,7 +451,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
           placeholder={placeholder}
           readOnly
           onClick={() => setIsSearchOpen(true)}
-          className="cursor-pointer pr-10"
+          className="cursor-pointer pr-10 hover:bg-accent/50 transition-colors"
         />
         <Button
           type="button"
@@ -476,6 +481,10 @@ export const AddressInput: React.FC<AddressInputProps> = ({
             </DialogTitle>
             <DialogDescription>
               도로명/지번 또는 장소명을 입력하고 검색을 눌러주세요.
+              <br />
+              <span className="text-xs text-muted-foreground">
+                💡 Enter 키로 검색할 수 있습니다
+              </span>
             </DialogDescription>
           </DialogHeader>
 
@@ -493,8 +502,16 @@ export const AddressInput: React.FC<AddressInputProps> = ({
                 onClick={handleSearch} 
                 disabled={!searchQuery.trim() || loading}
                 size="sm"
+                className="min-w-[80px]"
               >
-                {loading ? '검색 중...' : '검색'}
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    검색 중
+                  </div>
+                ) : (
+                  '검색'
+                )}
               </Button>
             </div>
 
@@ -510,23 +527,40 @@ export const AddressInput: React.FC<AddressInputProps> = ({
                     <CardContent className="p-3">
                       <div className="space-y-1">
                         {(result.road_address_name || result.place_name) && (
-                          <p className="font-medium text-sm">{result.road_address_name || result.place_name}</p>
+                          <p className="font-medium text-sm text-foreground">
+                            {result.road_address_name || result.place_name}
+                          </p>
                         )}
                         {result.address_name && (
-                          <p className="text-xs text-muted-foreground">{result.address_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {result.address_name}
+                          </p>
+                        )}
+                        {result.place_name && result.road_address_name && (
+                          <p className="text-xs text-blue-600 dark:text-blue-400">
+                            📍 {result.place_name}
+                          </p>
                         )}
                       </div>
                     </CardContent>
                   </Card>
                 ))
               ) : searchQuery && !loading ? (
-                <p className="text-center text-muted-foreground py-8">
-                  검색 결과가 없습니다.
-                </p>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-2">검색 결과가 없습니다.</p>
+                  <p className="text-xs text-muted-foreground">
+                    다른 키워드로 검색해보세요.<br />
+                    예: "강남대로", "서울시 강남구" 등
+                  </p>
+                </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  주소를 검색해주세요.
-                </p>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-2">주소를 검색해주세요.</p>
+                  <p className="text-xs text-muted-foreground">
+                    도로명 주소, 지번 주소, 건물명 등을<br />
+                    입력하고 검색 버튼을 클릭하세요.
+                  </p>
+                </div>
               )}
             </div>
           </div>

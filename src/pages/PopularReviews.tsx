@@ -202,14 +202,34 @@ const PopularReviews = () => {
                 <CardHeader className="pb-4">
                   <div className="flex gap-4">
                     <div className="relative group-hover:scale-105 transition-transform">
+                      {/* 실제 사진 (사용자가 업로드한 이미지) */}
                       <img
-                        src={review.book.cover_image_url || getDefaultCoverImage()}
+                        src={getDefaultCoverImage()}
                         alt={review.book.title}
                         className="w-16 h-20 object-cover rounded-lg shadow-md"
                         onError={(e) => {
                           e.currentTarget.src = getDefaultCoverImage();
                         }}
                       />
+                      
+                      {/* 데이터베이스에서 불러온 표지 (오른쪽 아래 작게 표시) */}
+                      {review.book.cover_image_url && (
+                        <div className="absolute bottom-0 right-0">
+                          <div className="relative">
+                            <img
+                              src={review.book.cover_image_url}
+                              alt="DB 표지"
+                              className="w-6 h-8 object-cover rounded border border-white shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                              DB
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 space-y-2">
                       <CardTitle className="text-lg line-clamp-1 group-hover:text-primary transition-colors">

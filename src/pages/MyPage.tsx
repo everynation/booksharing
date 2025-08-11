@@ -240,14 +240,35 @@ const MyPage = () => {
                   <Card key={book.id} className="overflow-hidden">
                     <CardHeader className="p-0">
                       <div className="aspect-[3/4] bg-muted relative">
+                        {/* 실제 사진 (사용자가 업로드한 이미지) */}
                         <img 
-                          src={book.cover_image_url || getDefaultCoverImage()} 
+                          src={getDefaultCoverImage()} 
                           alt={book.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.currentTarget.src = getDefaultCoverImage();
                           }}
                         />
+                        
+                        {/* 데이터베이스에서 불러온 표지 (오른쪽 아래 작게 표시) */}
+                        {book.cover_image_url && (
+                          <div className="absolute bottom-2 right-2">
+                            <div className="relative">
+                              <img 
+                                src={book.cover_image_url} 
+                                alt="DB 표지"
+                                className="w-12 h-16 object-cover rounded border border-white shadow-md"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                              <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                                DB
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="absolute top-2 right-2">
                           {getStatusBadge(book.status)}
                         </div>
@@ -279,11 +300,21 @@ const MyPage = () => {
                     </CardContent>
                     
                     <CardFooter className="p-4 pt-0 flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => navigate(`/books/${book.id}`)}
+                      >
                         <Eye className="h-4 w-4" />
                         보기
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => navigate(`/edit-book/${book.id}`)}
+                      >
                         <Edit className="h-4 w-4" />
                         수정
                       </Button>

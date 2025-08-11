@@ -214,15 +214,35 @@ const RewardNotification = () => {
                   <Card key={book.id} className="border-primary/20">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-16 h-20 bg-muted rounded overflow-hidden flex-shrink-0">
+                        <div className="w-16 h-20 bg-muted rounded overflow-hidden flex-shrink-0 relative">
+                          {/* 실제 사진 (사용자가 업로드한 이미지) */}
                           <img 
-                            src={book.cover_image_url || getDefaultCoverImage()} 
+                            src={getDefaultCoverImage()} 
                             alt={book.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.currentTarget.src = getDefaultCoverImage();
                             }}
                           />
+                          
+                          {/* 데이터베이스에서 불러온 표지 (오른쪽 아래 작게 표시) */}
+                          {book.cover_image_url && (
+                            <div className="absolute bottom-0 right-0">
+                              <div className="relative">
+                                <img
+                                  src={book.cover_image_url}
+                                  alt="DB 표지"
+                                  className="w-6 h-8 object-cover rounded border border-white shadow-sm"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                                <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                                  DB
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="flex-1">

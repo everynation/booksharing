@@ -373,17 +373,41 @@ const BookDetail = () => {
             {/* Book Image */}
             <div className="space-y-4">
               <div className="aspect-[3/4] bg-muted rounded-lg overflow-hidden relative">
+                {/* 실제 사진 (사용자가 업로드한 이미지) */}
                 <img 
-                  src={book.cover_image_url || getDefaultCoverImage()} 
+                  src={getDefaultCoverImage()} 
                   alt={book.title}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.currentTarget.src = getDefaultCoverImage();
                   }}
                 />
+                
+                {/* 데이터베이스에서 불러온 표지 (오른쪽 아래 작게 표시) */}
+                {book.cover_image_url && (
+                  <div className="absolute bottom-4 right-4">
+                    <div className="relative">
+                      <img 
+                        src={book.cover_image_url} 
+                        alt="DB 표지"
+                        className="w-16 h-20 object-cover rounded border-2 border-white shadow-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                      <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                        DB
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 상태 배지 */}
                 <div className="absolute top-4 right-4">
                   {getStatusBadge(book.status)}
                 </div>
+                
+                {/* 거래 타입 배지 */}
                 <div className="absolute top-4 left-4">
                   <Badge variant={book.transaction_type === "sale" ? "destructive" : "secondary"}>
                     {book.transaction_type === "sale" ? "판매" : "대여"}

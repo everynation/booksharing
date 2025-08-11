@@ -42,6 +42,9 @@ const Header = () => {
           <a href="/my" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
             내 책장
           </a>
+          <a href="/test-scanner" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
+            스캐너 테스트
+          </a>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -88,6 +91,13 @@ const Header = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 내 책장
+              </a>
+              <a 
+                href="/test-scanner" 
+                className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors py-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                스캐너 테스트
               </a>
             </nav>
           </div>

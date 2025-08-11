@@ -280,28 +280,49 @@ const Books = () => {
               <Card key={book.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => navigate(`/books/${book.id}`)}>
                 <CardHeader className="p-0">
-                  <div className="aspect-[3/4] bg-muted relative">
-                    <img 
-                      src={book.cover_image_url || getDefaultCoverImage()} 
-                      alt={book.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = getDefaultCoverImage();
-                      }}
-                    />
-                    <div className="absolute top-2 right-2">
-                      <Badge variant={book.transaction_type === "sale" ? "destructive" : "secondary"}>
-                        {book.transaction_type === "sale" ? "판매" : "대여"}
+                                  <div className="aspect-[3/4] bg-muted relative">
+                  {/* 실제 사진 (사용자가 업로드한 이미지) */}
+                  <img 
+                    src={getDefaultCoverImage()} 
+                    alt={book.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = getDefaultCoverImage();
+                    }}
+                  />
+                  
+                  {/* 데이터베이스에서 불러온 표지 (오른쪽 아래 작게 표시) */}
+                  {book.cover_image_url && (
+                    <div className="absolute bottom-2 right-2">
+                      <div className="relative">
+                        <img 
+                          src={book.cover_image_url} 
+                          alt="DB 표지"
+                          className="w-12 h-16 object-cover rounded border border-white shadow-md"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                          DB
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="absolute top-2 right-2">
+                    <Badge variant={book.transaction_type === "sale" ? "destructive" : "secondary"}>
+                      {book.transaction_type === "sale" ? "판매" : "대여"}
+                    </Badge>
+                  </div>
+                  {book.status !== 'available' && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Badge variant="outline" className="bg-background">
+                        {book.status === 'rented' ? '대여중' : '판매완료'}
                       </Badge>
                     </div>
-                    {book.status !== 'available' && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Badge variant="outline" className="bg-background">
-                          {book.status === 'rented' ? '대여중' : '판매완료'}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                </div>
                 </CardHeader>
                 
                 <CardContent className="p-4">

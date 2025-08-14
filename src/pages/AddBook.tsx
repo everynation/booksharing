@@ -37,6 +37,7 @@ const AddBook = () => {
   const [showScanner, setShowScanner] = useState(false);
 const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
 const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
+const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,22 +139,22 @@ const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
         return;
       }
 
-      let coverImageUrl = null;
+      let coverImageUrl: string | null = null;
 
-      // Upload image if selected
-      if (imageFile) {
-        coverImageUrl = await uploadImage(imageFile);
-        if (!coverImageUrl) {
-          toast({
-            title: "이미지 업로드 실패",
-            description: "이미지 업로드 중 오류가 발생했습니다.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
+      if (coverSource === 'upload') {
+        if (imageFile) {
+          coverImageUrl = await uploadImage(imageFile);
+          if (!coverImageUrl) {
+            toast({
+              title: "이미지 업로드 실패",
+              description: "이미지 업로드 중 오류가 발생했습니다.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
         }
-      } else if (autoCoverUrl) {
-        // 파일 업로드가 없으면 ISBN에서 가져온 표지 URL 사용
+      } else if (coverSource === 'library') {
         coverImageUrl = autoCoverUrl;
       }
 
@@ -302,42 +303,110 @@ const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Book Cover Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="cover-image">책 표지 이미지</Label>
-                  <div className="flex flex-col items-center gap-4">
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview}
-                          alt="Book cover preview"
-                          className="w-32 h-48 object-cover rounded-md border border-border"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="absolute -top-2 -right-2"
+                  <Label>책 표지 선택</Label>
+                  <RadioGroup
+                    value={coverSource}
+                    onValueChange={(v) => {
+                      setCoverSource(v as 'library' | 'upload');
+                      if (v === 'library') {
+                        setImagePreview(autoCoverUrl ?? null);
+                      } else if (v === 'upload' && !imageFile) {
+                        setImagePreview(null);
+                      }
+                    }}
+                    className="flex flex-row space-x-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="library" id="add-cover-library" />
+                      <Label htmlFor="add-cover-library">라이브러리 표지</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="upload" id="add-cover-upload" />
+                      <Label htmlFor="add-cover-upload">직접 업로드</Label>
+                    </div>
+                  </RadioGroup>
+
+                  {coverSource === 'library' ? (
+                    <div className="flex flex-col items-center gap-3">
+                      {autoCoverUrl ? (
+                        <div className="relative">
+                          <img
+                            src={autoCoverUrl}
+                            alt="Library cover preview"
+                            className="w-32 h-48 object-cover rounded-md border border-border"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="absolute -top-2 -right-2"
+                            onClick={() => {
+                              setAutoCoverUrl(null);
+                              setImagePreview(null);
+                            }}
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          formData.isbn
+                            ? fetchBookInfo(formData.isbn)
+                            : toast({
+                                title: 'ISBN 필요',
+                                description: 'ISBN을 입력한 후 표지를 불러오세요.',
+                                variant: 'destructive',
+                              })
+                        }
+                        disabled={isLoadingBookInfo}
+                      >
+                        {isLoadingBookInfo ? '불러오는 중...' : 'ISBN으로 표지 불러오기'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">ISBN을 입력/스캔하면 라이브러리 표지를 가져옵니다.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4">
+                      {imagePreview ? (
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt="Book cover preview"
+                            className="w-32 h-48 object-cover rounded-md border border-border"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="absolute -top-2 -right-2"
                             onClick={() => {
                               setImageFile(null);
                               setImagePreview(null);
-                              setAutoCoverUrl(null);
                             }}
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <Input
-                      id="cover-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="w-full"
-                    />
-                  </div>
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <Input
+                        id="cover-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Title */}

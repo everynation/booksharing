@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -48,6 +49,7 @@ const EditBook = () => {
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
   const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
+  const [coverSource, setCoverSource] = useState<'library' | 'upload'>('upload');
 
   useEffect(() => {
     if (!id) {
@@ -169,28 +171,29 @@ const EditBook = () => {
 
       let coverImageUrl = existingImageUrl;
 
-      // 새 이미지가 업로드된 경우
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('book-covers')
-          .upload(fileName, imageFile);
+      if (coverSource === 'upload') {
+        if (imageFile) {
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('book-covers')
+            .upload(fileName, imageFile);
 
-        if (uploadError) {
-          throw uploadError;
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('book-covers')
+            .getPublicUrl(fileName);
+
+          coverImageUrl = publicUrl;
         }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('book-covers')
-          .getPublicUrl(fileName);
-
-        coverImageUrl = publicUrl;
-      }
-
-      if (!imageFile && autoCoverUrl) {
-        coverImageUrl = autoCoverUrl;
+      } else if (coverSource === 'library') {
+        if (autoCoverUrl) {
+          coverImageUrl = autoCoverUrl;
+        }
       }
 
       // 책 정보 업데이트
@@ -311,42 +314,113 @@ const EditBook = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Book Cover Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="cover-image">책 표지 이미지</Label>
-                  <div className="flex flex-col items-center gap-4">
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview}
-                          alt="Book cover preview"
-                          className="w-32 h-48 object-cover rounded-md border border-border"
-                        />
+                  <Label>책 표지 선택</Label>
+                  <RadioGroup
+                    value={coverSource}
+                    onValueChange={(v) => {
+                      setCoverSource(v as 'library' | 'upload');
+                      if (v === 'library') {
+                        if (autoCoverUrl) setImagePreview(autoCoverUrl);
+                        else setImagePreview(null);
+                      } else {
+                        if (!imageFile) setImagePreview(existingImageUrl);
+                      }
+                    }}
+                    className="flex flex-row space-x-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="library" id="cover-library" />
+                      <Label htmlFor="cover-library">라이브러리 표지</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="upload" id="cover-upload" />
+                      <Label htmlFor="cover-upload">직접 업로드</Label>
+                    </div>
+                  </RadioGroup>
+
+                  {coverSource === 'library' ? (
+                    <div className="flex flex-col items-center gap-3">
+                      {autoCoverUrl ? (
+                        <div className="relative">
+                          <img
+                            src={autoCoverUrl}
+                            alt="Library cover preview"
+                            className="w-32 h-48 object-cover rounded-md border border-border"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="absolute -top-2 -right-2"
+                            onClick={() => {
+                              setAutoCoverUrl(null);
+                              setImagePreview(null);
+                            }}
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex gap-2">
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
-                          className="absolute -top-2 -right-2"
-                          onClick={() => {
-                            setImageFile(null);
-                            setImagePreview(existingImageUrl);
-                            setAutoCoverUrl(null);
-                          }}
+                          onClick={() =>
+                            formData.isbn
+                              ? fetchBookInfo(formData.isbn)
+                              : toast({
+                                  title: 'ISBN 필요',
+                                  description: 'ISBN을 입력한 후 표지를 불러오세요.',
+                                  variant: 'destructive',
+                                })
+                          }
+                          disabled={isLoadingBookInfo}
                         >
-                          ✕
+                          {isLoadingBookInfo ? '불러오는 중...' : 'ISBN으로 표지 불러오기'}
                         </Button>
                       </div>
-                    ) : (
-                      <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <Input
-                      id="cover-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="w-full"
-                    />
-                  </div>
+                      <p className="text-xs text-muted-foreground">ISBN을 입력/스캔하면 라이브러리 표지를 가져옵니다.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4">
+                      {imagePreview ? (
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt="Book cover preview"
+                            className="w-32 h-48 object-cover rounded-md border border-border"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="absolute -top-2 -right-2"
+                            onClick={() => {
+                              setImageFile(null);
+                              setImagePreview(existingImageUrl);
+                            }}
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-32 h-48 border-2 border-dashed border-border rounded-md flex items-center justify-center">
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <Input
+                        id="cover-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Title */}

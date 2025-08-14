@@ -59,32 +59,38 @@ const BookDetail = () => {
     try {
       setLoading(true);
 
-      // Fetch book details
+      // Fetch book details without join (no FK needed)
       const { data: bookData, error: bookError } = await supabase
         .from('books')
-        .select(`
-          *,
-          profiles:user_id (
-            display_name,
-            phone,
-            address
-          )
-        `)
+        .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (bookError) {
         console.error('Error fetching book:', bookError);
+      }
+
+      if (!bookData) {
         toast({
-          title: "책 정보 로딩 실패",
-          description: "책 정보를 불러올 수 없습니다.",
+          title: "책을 찾을 수 없습니다",
+          description: "요청한 책 정보를 확인할 수 없습니다.",
           variant: "destructive",
         });
-        navigate("/books");
+        setBook(null);
         return;
       }
 
-      setBook(bookData as any);
+      // Fetch owner profile separately
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('display_name, phone, address')
+        .eq('user_id', bookData.user_id)
+        .maybeSingle();
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+      }
+
+      setBook({ ...(bookData as any), profiles: profileData ?? null } as any);
 
       // Check for existing transaction if user is logged in
       if (user) {

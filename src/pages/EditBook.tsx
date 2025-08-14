@@ -95,7 +95,7 @@ const EditBook = () => {
         return;
       }
 
-      const book = bookData as BookData;
+      const book = bookData as unknown as BookData;
       
       setFormData({
         title: book.title,

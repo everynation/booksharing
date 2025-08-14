@@ -20,6 +20,7 @@ export type Database = {
           author: string
           cover_image_url: string | null
           created_at: string
+          description: string | null
           id: string
           isbn: string | null
           latitude: number | null
@@ -36,6 +37,7 @@ export type Database = {
           author: string
           cover_image_url?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           isbn?: string | null
           latitude?: number | null
@@ -52,6 +54,7 @@ export type Database = {
           author?: string
           cover_image_url?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           isbn?: string | null
           latitude?: number | null

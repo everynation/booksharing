@@ -35,12 +35,14 @@ const AddBook = () => {
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [showScanner, setShowScanner] = useState(false);
-  const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
+const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
+const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setAutoCoverUrl(null);
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -150,6 +152,9 @@ const AddBook = () => {
           setLoading(false);
           return;
         }
+      } else if (autoCoverUrl) {
+        // 파일 업로드가 없으면 ISBN에서 가져온 표지 URL 사용
+        coverImageUrl = autoCoverUrl;
       }
 
       // Insert book data with user's address
@@ -227,6 +232,7 @@ const AddBook = () => {
         // 책 표지 이미지가 있으면 설정
         if (book.thumbnail && book.thumbnail !== '/placeholder.svg') {
           setImagePreview(book.thumbnail);
+          setAutoCoverUrl(book.thumbnail);
         }
 
         toast({
@@ -310,10 +316,11 @@ const AddBook = () => {
                           variant="outline"
                           size="sm"
                           className="absolute -top-2 -right-2"
-                          onClick={() => {
-                            setImageFile(null);
-                            setImagePreview(null);
-                          }}
+                            onClick={() => {
+                              setImageFile(null);
+                              setImagePreview(null);
+                              setAutoCoverUrl(null);
+                            }}
                         >
                           ✕
                         </Button>
@@ -372,6 +379,7 @@ const AddBook = () => {
                       placeholder="ISBN을 입력하거나 스캔하세요"
                       value={formData.isbn}
                       onChange={(e) => handleInputChange("isbn", e.target.value)}
+                      onBlur={() => formData.isbn && fetchBookInfo(formData.isbn)}
                       className="flex-1"
                       disabled={isLoadingBookInfo}
                     />

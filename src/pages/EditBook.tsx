@@ -46,6 +46,8 @@ const EditBook = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
+  const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -120,12 +122,36 @@ const EditBook = () => {
     } finally {
       setLoading(false);
     }
+};
+
+  const fetchBookInfo = async (isbn: string) => {
+    setIsLoadingBookInfo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('search-book', {
+        body: { isbn }
+      });
+      if (error) throw new Error(error.message);
+      if (data?.documents?.length) {
+        const book = data.documents[0];
+        if (book.thumbnail && book.thumbnail !== '/placeholder.svg') {
+          setAutoCoverUrl(book.thumbnail);
+          setImagePreview(book.thumbnail);
+          toast({ title: '표지 자동 적용', description: 'ISBN으로 표지를 설정했습니다.' });
+        }
+      }
+    } catch (err: any) {
+      console.error('Error fetching book info:', err);
+      toast({ title: '표지 불러오기 실패', description: 'ISBN으로 표지를 불러오지 못했습니다.', variant: 'destructive' });
+    } finally {
+      setIsLoadingBookInfo(false);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setAutoCoverUrl(null);
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -161,6 +187,10 @@ const EditBook = () => {
           .getPublicUrl(fileName);
 
         coverImageUrl = publicUrl;
+      }
+
+      if (!imageFile && autoCoverUrl) {
+        coverImageUrl = autoCoverUrl;
       }
 
       // 책 정보 업데이트
@@ -298,6 +328,7 @@ const EditBook = () => {
                           onClick={() => {
                             setImageFile(null);
                             setImagePreview(existingImageUrl);
+                            setAutoCoverUrl(null);
                           }}
                         >
                           ✕
@@ -347,6 +378,7 @@ const EditBook = () => {
                     id="isbn"
                     value={formData.isbn}
                     onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                    onBlur={() => formData.isbn && fetchBookInfo(formData.isbn)}
                     placeholder="978-0-000000-0-0"
                   />
                 </div>

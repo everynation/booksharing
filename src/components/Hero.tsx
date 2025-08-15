@@ -54,7 +54,7 @@ const Hero = () => {
               <Button 
                 size="lg"
                 onClick={() => user ? navigate("/add-book") : navigate("/auth")}
-                className="bg-gradient-to-r from-warm-orange to-primary hover:shadow-warm transform hover:scale-105 text-center px-8"
+                className="bg-gradient-to-r from-warm-orange to-primary hover:shadow-warm transform hover:scale-105 text-center px-12"
               >
                 + 첫번째 책 등록
               </Button>

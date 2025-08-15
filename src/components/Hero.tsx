@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, Users, Heart, Star } from "lucide-react";
+import { ArrowRight, BookOpen, Users, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -40,7 +40,7 @@ const Hero = () => {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 size="lg" 
                 onClick={handleGetStarted}
@@ -54,9 +54,8 @@ const Hero = () => {
               <Button 
                 size="lg"
                 onClick={() => user ? navigate("/add-book") : navigate("/auth")}
-                className="bg-gradient-to-r from-warm-orange to-primary hover:shadow-warm transform hover:scale-105"
+                className="bg-gradient-to-r from-warm-orange to-primary hover:shadow-warm transform hover:scale-105 text-center"
               >
-                <Heart className="h-5 w-5 mr-2" />
                 + 첫번째 책 등록
               </Button>
             </div>

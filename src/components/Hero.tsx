@@ -40,7 +40,7 @@ const Hero = () => {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md">
               <Button 
                 size="lg" 
                 onClick={handleGetStarted}

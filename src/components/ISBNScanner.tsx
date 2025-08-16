@@ -186,14 +186,88 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     }
   }, [isScanning, onScan, onClose, scanAttempts]);
 
-  // 카메라 초기화 (Quagga와 별도로)
+  // 카메라 초기화 (Quagga와 별도로) - 안드로이드 호환성 향상
   const initializeCamera = useCallback(async () => {
     try {
       setError(null);
+      console.log('Starting camera initialization...');
+      
+      // 먼저 미디어 장치 지원 확인
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('이 브라우저는 카메라를 지원하지 않습니다.');
+        return;
+      }
       
       const { isIOS, isAndroid, isGalaxy } = getDeviceInfo();
+      console.log('Device info:', { isIOS, isAndroid, isGalaxy });
       
-      // 기기별 최적화된 카메라 설정
+      // 안드로이드에서 더 안전한 단계별 카메라 접근
+      if (isAndroid) {
+        console.log('Android device detected, using safe camera initialization...');
+        
+        // 1단계: 최소 요구사항으로 시도
+        try {
+          console.log('Android: Trying basic camera access...');
+          const basicStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: cameraFacing
+            }
+          });
+          
+          console.log('Android: Basic camera access successful');
+          setStream(basicStream);
+          
+          if (videoRef.current) {
+            videoRef.current.srcObject = basicStream;
+            await videoRef.current.play();
+            console.log('Android: Video element ready');
+          }
+          
+          // 카메라 기능 설정 (안드로이드에서는 간소화)
+          const track = basicStream.getVideoTracks()[0];
+          if (track) {
+            await setupCameraFeatures(track);
+          }
+          
+          // Quagga 초기화
+          console.log('Android: Starting Quagga initialization...');
+          initializeQuagga();
+          return;
+          
+        } catch (basicErr) {
+          console.error('Android: Basic camera access failed:', basicErr);
+          
+          // 2단계: 권한 문제인 경우 명확한 메시지
+          if (basicErr.name === 'NotAllowedError') {
+            setError('카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
+            return;
+          }
+          
+          // 3단계: 다른 카메라로 시도
+          try {
+            console.log('Android: Trying front camera...');
+            const frontStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'user' }
+            });
+            
+            setStream(frontStream);
+            if (videoRef.current) {
+              videoRef.current.srcObject = frontStream;
+              await videoRef.current.play();
+            }
+            
+            initializeQuagga();
+            return;
+            
+          } catch (frontErr) {
+            console.error('Android: Front camera also failed:', frontErr);
+            setError('안드로이드 카메라에 접근할 수 없습니다. 다른 브라우저를 시도해보세요.');
+            return;
+          }
+        }
+      }
+      
+      // 기존 로직 (iOS 및 기타 기기)
       const constraints: MediaStreamConstraints = {
         video: {
           facingMode: cameraFacing,
@@ -203,44 +277,33 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         }
       };
 
-      // iOS와 Android에서 더 나은 카메라 설정
-      if (isIOS || isAndroid) {
-        if (isIOS) {
-          (constraints.video as any) = {
-            facingMode: cameraFacing,
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30, max: 60 }
-          };
-        } else if (isAndroid) {
-          (constraints.video as any) = {
-            facingMode: cameraFacing,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 30, max: 60 }
-          };
-        }
+      // iOS 최적화 설정
+      if (isIOS) {
+        (constraints.video as any) = {
+          facingMode: cameraFacing,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 60 }
+        };
       }
 
-      // 갤럭시 특별 설정 - 더 낮은 해상도로 초점 안정성 향상
+      // 갤럭시 특별 설정
       if (isGalaxy) {
         (constraints.video as any) = {
           facingMode: cameraFacing,
           width: { ideal: 640, max: 1280 },
           height: { ideal: 480, max: 720 },
-          frameRate: { ideal: 24, max: 30 },
-          // 갤럭시에서 추가 설정
-          deviceId: undefined, // 기본 카메라 사용
-          groupId: undefined
+          frameRate: { ideal: 24, max: 30 }
         };
       }
 
+      console.log('Using constraints:', constraints);
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+        await videoRef.current.play();
       }
 
       // 카메라 기능 설정
@@ -255,32 +318,15 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     } catch (err) {
       console.error('Camera initialization failed:', err);
       
-      // 갤럭시에서 카메라 접근 실패 시 fallback
-      if (getDeviceInfo().isGalaxy) {
-        try {
-          console.log('Trying fallback camera settings for Galaxy...');
-          const fallbackStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: cameraFacing,
-              width: { ideal: 640 },
-              height: { ideal: 480 }
-            }
-          });
-          
-          setStream(fallbackStream);
-          if (videoRef.current) {
-            videoRef.current.srcObject = fallbackStream;
-            videoRef.current.play();
-          }
-          
-          initializeQuagga();
-          
-        } catch (fallbackErr) {
-          console.error('Fallback camera also failed:', fallbackErr);
-          setError('갤럭시에서 카메라에 접근할 수 없습니다. 브라우저 설정을 확인해주세요.');
-        }
+      // 오류 타입별 명확한 메시지
+      if (err.name === 'NotAllowedError') {
+        setError('카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
+      } else if (err.name === 'NotFoundError') {
+        setError('카메라를 찾을 수 없습니다. 기기에 카메라가 연결되어 있는지 확인해주세요.');
+      } else if (err.name === 'NotReadableError') {
+        setError('카메라가 다른 앱에서 사용 중입니다. 다른 앱을 종료하고 다시 시도해주세요.');
       } else {
-        setError('카메라에 접근할 수 없습니다. 권한을 확인해주세요.');
+        setError(`카메라 오류: ${err.message || '알 수 없는 오류'}`);
       }
     }
   }, [cameraFacing, initializeQuagga]);

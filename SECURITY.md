@@ -20,12 +20,12 @@
 - All functions now use `SECURITY DEFINER` with proper path restrictions
 
 ### 3. **Secure API Key Management**
-**Issue**: Kakao Maps API key was hardcoded in frontend files, exposing it to client-side access.
+**Issue**: Kakao Maps API key was hardcoded in multiple frontend files, exposing it to client-side access.
 
 **Fix**:
 - Created secure edge function `get-kakao-api-key` to serve API keys
 - Updated `useKakaoMaps` hook to fetch API key securely via edge function
-- Removed all hardcoded API key references from frontend code
+- Removed all hardcoded API key references from frontend code (including vite.config.ts)
 - Updated `AddressInput` component to use the secure hook
 
 ### 4. **Input Sanitization Implementation**
@@ -95,7 +95,7 @@ Based on the security linter warnings, please address these in your Supabase das
 - ✅ Implemented secure API key management
 - ✅ Added comprehensive input sanitization
 - ✅ Enhanced database function security
-- ✅ Removed hardcoded sensitive data from frontend
+- ✅ Completely eliminated all hardcoded sensitive data from frontend
 - ⚠️ Authentication settings (requires user action in dashboard)
 
 ## 🔄 Next Steps

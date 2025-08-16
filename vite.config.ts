@@ -5,10 +5,6 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  define: {
-    // 환경변수 정의
-    'process.env.VITE_KAKAO_MAPS_API_KEY': JSON.stringify('42c2269af0526cb8e15cc15e95efb23c'),
-  },
   server: {
     host: "::",
     port: 8080,

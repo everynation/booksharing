@@ -222,6 +222,10 @@ export type Database = {
         Args: { book_id_param: string; user_id_param: string }
         Returns: boolean
       }
+      get_user_display_name: {
+        Args: { user_id_param: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

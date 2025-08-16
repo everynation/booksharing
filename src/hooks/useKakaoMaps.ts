@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 declare global {
   interface Window {
@@ -6,7 +7,22 @@ declare global {
   }
 }
 
-const KAKAO_SDK_URL = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=42c2269af0526cb8e15cc15e95efb23c&libraries=services&autoload=false";
+// Securely get Kakao API key from edge function
+async function getKakaoApiKey(): Promise<string> {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-kakao-api-key');
+    
+    if (error) {
+      console.error('Error getting Kakao API key:', error);
+      throw new Error('Failed to get API key');
+    }
+    
+    return data.apiKey;
+  } catch (error) {
+    console.error('Failed to fetch Kakao API key:', error);
+    throw new Error('API key not available');
+  }
+}
 
 export function useKakaoMaps() {
   const [ready, setReady] = useState<boolean>(false);
@@ -25,7 +41,7 @@ export function useKakaoMaps() {
       return loadingPromiseRef.current;
     }
 
-    loadingPromiseRef.current = new Promise<void>((resolve, reject) => {
+    loadingPromiseRef.current = new Promise<void>(async (resolve, reject) => {
       console.log("[useKakaoMaps] Starting new loading process");
       
       // 이미 로드된 경우
@@ -36,13 +52,18 @@ export function useKakaoMaps() {
         return;
       }
 
-      // 스크립트가 이미 있는지 확인
-      let script = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]') as HTMLScriptElement;
-      
-      if (!script) {
-        console.log("[useKakaoMaps] Creating new script");
-        script = document.createElement('script');
-        script.src = KAKAO_SDK_URL;
+      try {
+        // Get API key securely from edge function
+        const apiKey = await getKakaoApiKey();
+        const KAKAO_SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services&autoload=false`;
+
+        // 스크립트가 이미 있는지 확인
+        let script = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]') as HTMLScriptElement;
+        
+        if (!script) {
+          console.log("[useKakaoMaps] Creating new script");
+          script = document.createElement('script');
+          script.src = KAKAO_SDK_URL;
         script.async = true;
         script.crossOrigin = 'anonymous';
         
@@ -94,6 +115,10 @@ export function useKakaoMaps() {
             }
           }, { once: true });
         }
+      }
+      } catch (error) {
+        console.error("[useKakaoMaps] Error loading Kakao API:", error);
+        reject(error);
       }
     });
 

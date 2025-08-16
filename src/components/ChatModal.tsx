@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { sanitizeChatMessage } from '@/lib/sanitization';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -156,7 +157,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const sendMessage = async () => {
     if (!newMessage.trim() || !user || loading) return;
 
-    const messageText = newMessage.trim();
+    const messageText = sanitizeChatMessage(newMessage.trim());
     setNewMessage(''); // 즉시 입력창 비우기
     setLoading(true);
 

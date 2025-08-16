@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useKakaoMaps } from '@/hooks/useKakaoMaps';
 
 declare global {
   interface Window {
@@ -43,122 +44,36 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   const [kakaoError, setKakaoError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
+  
+  // Use the secure Kakao Maps hook
+  const { ready: kakaoHookReady, ensureLoaded } = useKakaoMaps();
 
-  // Kakao Maps API 직접 로딩
+  // Update local state when hook ready state changes
+  useEffect(() => {
+    if (kakaoHookReady) {
+      setKakaoReady(true);
+      setKakaoError(null);
+    }
+  }, [kakaoHookReady]);
+
+  // Kakao Maps API loading using the secure hook
   const loadKakaoMaps = useCallback(async (): Promise<void> => {
     console.log("[AddressInput] loadKakaoMaps called");
-    console.log("[AddressInput] Current hostname:", window.location.hostname);
-    console.log("[AddressInput] Current origin:", window.location.origin);
     
     if (kakaoReady) {
       console.log("[AddressInput] Kakao Maps already ready");
-      return;
+      return Promise.resolve();
     }
 
-    return new Promise<void>((resolve, reject) => {
-      console.log("[AddressInput] Starting Kakao Maps loading process");
-      
-      // 이미 로드된 경우
-      if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
-        console.log("[AddressInput] Kakao Maps already loaded");
-        setKakaoReady(true);
-        setKakaoError(null);
-        resolve();
-        return;
-      }
-
-      // 환경별 API 키 설정
-      const getApiKey = () => {
-        const hostname = window.location.hostname;
-        console.log("[AddressInput] Current hostname:", hostname);
-        
-        // lovable 도메인 체크
-        if (hostname.includes('lovable')) {
-          console.log("[AddressInput] Detected lovable domain, using specific API key");
-          // lovable 도메인용 API 키 (실제 등록된 키로 교체 필요)
-          return '42c2269af0526cb8e15cc15e95efb23c';
-        }
-        
-        // localhost 또는 개발 환경
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-          console.log("[AddressInput] Detected localhost, using development API key");
-          return '42c2269af0526cb8e15cc15e95efb23c';
-        }
-        
-        // 환경변수에서 API 키 가져오기
-        const apiKey = process.env.VITE_KAKAO_MAPS_API_KEY || '42c2269af0526cb8e15cc15e95efb23c';
-        console.log("[AddressInput] Using API key from env:", apiKey);
-        
-        return apiKey;
-      };
-
-      const apiKey = getApiKey();
-      console.log("[AddressInput] Using API key:", apiKey);
-
-      // 스크립트가 이미 있는지 확인
-      let script = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]') as HTMLScriptElement;
-      
-      if (!script) {
-        console.log("[AddressInput] Creating new Kakao Maps script");
-        script = document.createElement('script');
-        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services&autoload=false`;
-        script.async = true;
-        script.crossOrigin = 'anonymous';
-        
-        script.onload = () => {
-          console.log("[AddressInput] Kakao Maps script loaded successfully");
-          if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
-            window.kakao.maps.load(() => {
-              console.log("[AddressInput] Kakao Maps API loaded successfully");
-              setKakaoReady(true);
-              setKakaoError(null);
-              resolve();
-            });
-          } else {
-            const error = 'Kakao Maps load function not available';
-            console.error("[AddressInput]", error);
-            setKakaoError(error);
-            reject(new Error(error));
-          }
-        };
-        
-        script.onerror = (error) => {
-          const errorMsg = 'Kakao Maps SDK load failed';
-          console.error("[AddressInput]", errorMsg, error);
-          setKakaoError(errorMsg);
-          reject(new Error(errorMsg));
-        };
-        
-        document.head.appendChild(script);
-      } else {
-        console.log("[AddressInput] Kakao Maps script already exists");
-        if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
-          window.kakao.maps.load(() => {
-            console.log("[AddressInput] Kakao Maps API loaded from existing script");
-            setKakaoReady(true);
-            setKakaoError(null);
-            resolve();
-          });
-        } else {
-          script.addEventListener('load', () => {
-            console.log("[AddressInput] Existing script loaded");
-            if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
-              window.kakao.maps.load(() => {
-                console.log("[AddressInput] Kakao Maps API loaded from existing script");
-                setKakaoReady(true);
-                setKakaoError(null);
-                resolve();
-              });
-            } else {
-              const error = 'Kakao Maps not properly loaded';
-              setKakaoError(error);
-              reject(new Error(error));
-            }
-          }, { once: true });
-        }
-      }
-    });
-  }, [kakaoReady]);
+    try {
+      await ensureLoaded();
+      console.log("[AddressInput] Kakao Maps loaded successfully via hook");
+    } catch (error) {
+      console.error("[AddressInput] Failed to load Kakao Maps:", error);
+      setKakaoError(error instanceof Error ? error.message : 'Failed to load maps');
+      throw error;
+    }
+  }, [kakaoReady, ensureLoaded]);
 
 
 

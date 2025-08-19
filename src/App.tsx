@@ -18,6 +18,9 @@ import TestScanner from "./pages/TestScanner";
 import EditBook from "./pages/EditBook";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import TransactionConfirm from "./pages/TransactionConfirm";
+import ReturnRequest from "./pages/ReturnRequest";
+import ReturnComplete from "./pages/ReturnComplete";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +45,9 @@ const App = () => (
             <Route path="/test-scanner" element={<TestScanner />} />
             <Route path="/edit-book/:id" element={<EditBook />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/transaction-confirm/:id" element={<TransactionConfirm />} />
+            <Route path="/return-request/:id" element={<ReturnRequest />} />
+            <Route path="/return-complete/:id" element={<ReturnComplete />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

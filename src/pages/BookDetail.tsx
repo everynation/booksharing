@@ -182,8 +182,8 @@ const BookDetail = () => {
         owner_id: book.user_id,
       });
 
-      // 3. 채팅 모달 열기
-      setChatModalOpen(true);
+      // 3. 거래 확인 페이지로 이동
+      navigate(`/transaction-confirm/${transactionData.id}`);
       
     } catch (error) {
       toast({

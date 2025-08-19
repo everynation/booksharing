@@ -20,51 +20,63 @@ export type Database = {
           author: string
           cover_image_url: string | null
           created_at: string
+          daily_rate: number | null
           description: string | null
           id: string
           isbn: string | null
+          late_fee_per_day: number | null
           latitude: number | null
           longitude: number | null
           price: number
+          rental_terms: string | null
           status: string
           title: string
           transaction_type: string
           updated_at: string
           user_id: string
+          weekly_rate: number | null
         }
         Insert: {
           address?: string | null
           author: string
           cover_image_url?: string | null
           created_at?: string
+          daily_rate?: number | null
           description?: string | null
           id?: string
           isbn?: string | null
+          late_fee_per_day?: number | null
           latitude?: number | null
           longitude?: number | null
           price: number
+          rental_terms?: string | null
           status?: string
           title: string
           transaction_type: string
           updated_at?: string
           user_id: string
+          weekly_rate?: number | null
         }
         Update: {
           address?: string | null
           author?: string
           cover_image_url?: string | null
           created_at?: string
+          daily_rate?: number | null
           description?: string | null
           id?: string
           isbn?: string | null
+          late_fee_per_day?: number | null
           latitude?: number | null
           longitude?: number | null
           price?: number
+          rental_terms?: string | null
           status?: string
           title?: string
           transaction_type?: string
           updated_at?: string
           user_id?: string
+          weekly_rate?: number | null
         }
         Relationships: []
       }
@@ -175,32 +187,53 @@ export type Database = {
       transactions: {
         Row: {
           book_id: string
+          borrower_confirmed: boolean | null
           borrower_id: string
           created_at: string
           id: string
+          owner_confirmed: boolean | null
           owner_id: string
+          rental_end_date: string | null
+          rental_start_date: string | null
+          return_deadline: string | null
           return_proof_image_url: string | null
+          return_requested_at: string | null
           status: string
+          total_amount: number | null
           updated_at: string
         }
         Insert: {
           book_id: string
+          borrower_confirmed?: boolean | null
           borrower_id: string
           created_at?: string
           id?: string
+          owner_confirmed?: boolean | null
           owner_id: string
+          rental_end_date?: string | null
+          rental_start_date?: string | null
+          return_deadline?: string | null
           return_proof_image_url?: string | null
+          return_requested_at?: string | null
           status?: string
+          total_amount?: number | null
           updated_at?: string
         }
         Update: {
           book_id?: string
+          borrower_confirmed?: boolean | null
           borrower_id?: string
           created_at?: string
           id?: string
+          owner_confirmed?: boolean | null
           owner_id?: string
+          rental_end_date?: string | null
+          rental_start_date?: string | null
+          return_deadline?: string | null
           return_proof_image_url?: string | null
+          return_requested_at?: string | null
           status?: string
+          total_amount?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -212,6 +245,68 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          transaction_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          transaction_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          transaction_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

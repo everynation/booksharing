@@ -385,16 +385,38 @@ const MyPage = () => {
                               ? `소유자: ${transaction.owner.display_name}`
                               : ""}
                           </p>
-                          {/* Return Proof Button - Only show for owners of in_progress transactions */}
-                          {transaction.status === 'in_progress' && transaction.owner_id === user.id && (
+                          {/* Action buttons based on transaction status */}
+                          {transaction.status === 'requested' && (
                             <Button
                               size="sm"
                               variant="warm"
-                              onClick={() => navigate(`/return-proof/${transaction.id}`)}
+                              onClick={() => navigate(`/transaction-confirm/${transaction.id}`)}
                               className="flex items-center gap-2"
                             >
                               <CheckCircle className="h-4 w-4" />
-                              반납 인증
+                              거래 확인
+                            </Button>
+                          )}
+                          {transaction.status === 'in_progress' && transaction.borrower_id === user.id && (
+                            <Button
+                              size="sm"
+                              variant="warm"
+                              onClick={() => navigate(`/return-request/${transaction.id}`)}
+                              className="flex items-center gap-2"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              반납 요청
+                            </Button>
+                          )}
+                          {transaction.status === 'return_requested' && (
+                            <Button
+                              size="sm"
+                              variant="warm"
+                              onClick={() => navigate(`/return-complete/${transaction.id}`)}
+                              className="flex items-center gap-2"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              반납 완료
                             </Button>
                           )}
                         </div>

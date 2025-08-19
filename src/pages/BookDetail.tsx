@@ -288,11 +288,6 @@ const BookDetail = () => {
               <MessageCircle className="h-4 w-4 mr-2" />
               메시지 보내기
             </Button>
-            {existingTransaction.borrower_id === user.id && (
-              <Button onClick={handleTransactionComplete} variant="outline" size="lg" className="w-full">
-                거래 완료 (책을 받았습니다)
-              </Button>
-            )}
           </div>
         );
       }

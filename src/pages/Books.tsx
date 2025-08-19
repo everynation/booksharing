@@ -362,10 +362,10 @@ const Books = () => {
                       handleBorrowRequest(book.id);
                     }}
                   >
-                    {book.status === 'available' 
-                      ? (book.user_id === user?.id ? "내 책" : `${book.transaction_type === "sale" ? "구매" : "대여"} 요청`)
+                     {book.status === 'available' 
+                      ? (book.user_id === user?.id ? "내 책" : "메시지 보내기")
                       : (book.status === 'rented' ? '대여중' : '판매완료')
-                    }
+                     }
                   </Button>
                 </CardFooter>
               </Card>

@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { checkUserCanBorrow } from "@/lib/rentalUtils";
 import Header from "@/components/Header";
+import { ChatModal } from "@/components/ChatModal";
 
 interface BookDetail {
   id: string;
@@ -44,6 +45,7 @@ const BookDetail = () => {
   const [existingTransaction, setExistingTransaction] = useState<ExistingTransaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestLoading, setRequestLoading] = useState(false);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -172,35 +174,17 @@ const BookDetail = () => {
         return;
       }
 
-      // 2. 초기 메시지 생성
-      const initialMessage = `📚 "${book.title}" 책을 대여하고 싶습니다.`;
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          transaction_id: transactionData.id,
-          sender_id: user.id,
-          receiver_id: book.user_id,
-          message: initialMessage
-        });
-
-      if (messageError) {
-        console.error('Error creating initial message:', messageError);
-        // 메시지 생성 실패해도 트랜잭션은 유지
-      }
-
-      toast({
-        title: "대여 요청 완료",
-        description: "직접 만나서 거래하세요. 책 주인과 연락하여 만날 장소와 시간을 정하세요.",
+      // 2. 트랜잭션 정보 업데이트
+      setExistingTransaction({
+        id: transactionData.id,
+        status: 'requested',
+        borrower_id: user.id,
+        owner_id: book.user_id,
       });
+
+      // 3. 채팅 모달 열기
+      setChatModalOpen(true);
       
-      // Update book status to rented
-      await supabase
-        .from('books')
-        .update({ status: 'rented' })
-        .eq('id', book.id);
-      
-      // Refresh book detail
-      fetchBookDetail();
     } catch (error) {
       toast({
         title: "오류가 발생했습니다",
@@ -265,7 +249,7 @@ const BookDetail = () => {
     if (!user) {
       return (
         <Button onClick={() => navigate("/auth")} variant="warm" size="lg" className="w-full">
-          로그인하여 {book?.transaction_type === "sale" ? "구매" : "대여"} 요청
+          로그인하여 요청하기
         </Button>
       );
     }
@@ -295,8 +279,17 @@ const BookDetail = () => {
                 직접 만나서 거래하세요. 책 주인과 연락하여 만날 장소와 시간을 정하세요.
               </p>
             </div>
+            <Button 
+              onClick={() => setChatModalOpen(true)} 
+              variant="warm" 
+              size="lg" 
+              className="w-full"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              메시지 보내기
+            </Button>
             {existingTransaction.borrower_id === user.id && (
-              <Button onClick={handleTransactionComplete} variant="warm" size="lg" className="w-full">
+              <Button onClick={handleTransactionComplete} variant="outline" size="lg" className="w-full">
                 거래 완료 (책을 받았습니다)
               </Button>
             )}
@@ -322,7 +315,7 @@ const BookDetail = () => {
       >
         {requestLoading 
           ? "요청 중..." 
-          : `${book?.transaction_type === "sale" ? "구매" : "대여"} 요청`
+          : "요청하기"
         }
       </Button>
     );
@@ -495,6 +488,18 @@ const BookDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* Chat Modal */}
+      {existingTransaction && book?.profiles && (
+        <ChatModal
+          isOpen={chatModalOpen}
+          onClose={() => setChatModalOpen(false)}
+          otherUserId={book.user_id}
+          otherUserName={book.profiles.display_name || "익명"}
+          bookTitle={book.title}
+          transactionId={existingTransaction.id}
+        />
+      )}
     </div>
   );
 };

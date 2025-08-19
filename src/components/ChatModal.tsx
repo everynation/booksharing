@@ -202,35 +202,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     }
   };
 
-  const handleRequestResponse = async (action: 'approved' | 'rejected') => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ status: action })
-        .eq('id', transactionId);
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: action === 'approved' ? "대여 승인됨" : "대여 거절됨",
-        description: `대여 요청이 ${action === 'approved' ? '승인' : '거절'}되었습니다.`,
-      });
-
-      // 성공 시 모달 닫기
-      onClose();
-    } catch (error) {
-      console.error('Error updating transaction:', error);
-      toast({
-        title: "오류 발생",
-        description: "상태 업데이트 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const formatMessageTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -253,25 +224,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               <DialogTitle className="text-lg font-semibold">{otherUserName}</DialogTitle>
               <p className="text-sm text-muted-foreground">"{bookTitle}" 대여 관련</p>
             </div>
-          </div>
-          
-          {/* 승인/거절 버튼 */}
-          <div className="flex gap-2 mt-3">
-            <Button
-              size="sm"
-              onClick={() => handleRequestResponse('approved')}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-            >
-              승인
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleRequestResponse('rejected')}
-              className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
-            >
-              거절
-            </Button>
           </div>
         </DialogHeader>
 

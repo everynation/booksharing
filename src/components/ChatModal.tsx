@@ -333,15 +333,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     if (!contract) {
       return (
         <div className="p-3 border-t bg-accent/10">
-          <Button 
-            onClick={createRentalContract}
-            disabled={contractLoading}
-            className="w-full"
-            variant="outline"
-          >
-            <Play className="h-4 w-4 mr-2" />
-            대여 계약 생성
-          </Button>
+            <Button 
+              onClick={createRentalContract}
+              disabled={contractLoading}
+              className="w-full"
+              variant="outline"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {user?.id === otherUserId ? "빌렸어요" : "빌려줬어요"}
+            </Button>
         </div>
       );
     }
@@ -370,7 +370,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               className="w-full"
             >
               <Play className="h-4 w-4 mr-2" />
-              대여 시작 동의
+              {isOwner ? "빌려주기 동의" : "빌리기 동의"}
             </Button>
           )}
           {hasAgreed && !otherHasAgreed && (

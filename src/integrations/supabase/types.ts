@@ -30,6 +30,7 @@ export type Database = {
           late_fee_per_day: number | null
           latitude: number | null
           longitude: number | null
+          new_book_price: number | null
           price: number
           rental_daily: number | null
           rental_terms: string | null
@@ -56,6 +57,7 @@ export type Database = {
           late_fee_per_day?: number | null
           latitude?: number | null
           longitude?: number | null
+          new_book_price?: number | null
           price: number
           rental_daily?: number | null
           rental_terms?: string | null
@@ -82,6 +84,7 @@ export type Database = {
           late_fee_per_day?: number | null
           latitude?: number | null
           longitude?: number | null
+          new_book_price?: number | null
           price?: number
           rental_daily?: number | null
           rental_terms?: string | null
@@ -168,6 +171,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      rental_contracts: {
+        Row: {
+          book_id: string
+          borrower_confirmed: boolean
+          borrower_id: string
+          borrower_return_ok: boolean
+          created_at: string
+          daily_price: number
+          end_date: string | null
+          id: string
+          late_daily_price: number | null
+          new_book_price_cap: number
+          next_charge_at: string | null
+          owner_confirmed: boolean
+          owner_id: string
+          owner_return_ok: boolean
+          start_date: string | null
+          status: string
+          total_charged: number
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          borrower_confirmed?: boolean
+          borrower_id: string
+          borrower_return_ok?: boolean
+          created_at?: string
+          daily_price: number
+          end_date?: string | null
+          id?: string
+          late_daily_price?: number | null
+          new_book_price_cap: number
+          next_charge_at?: string | null
+          owner_confirmed?: boolean
+          owner_id: string
+          owner_return_ok?: boolean
+          start_date?: string | null
+          status?: string
+          total_charged?: number
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          borrower_confirmed?: boolean
+          borrower_id?: string
+          borrower_return_ok?: boolean
+          created_at?: string
+          daily_price?: number
+          end_date?: string | null
+          id?: string
+          late_daily_price?: number | null
+          new_book_price_cap?: number
+          next_charge_at?: string | null
+          owner_confirmed?: boolean
+          owner_id?: string
+          owner_return_ok?: boolean
+          start_date?: string | null
+          status?: string
+          total_charged?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_contracts_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rental_handshakes: {
         Row: {

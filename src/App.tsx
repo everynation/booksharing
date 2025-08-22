@@ -22,6 +22,7 @@ import TransactionConfirm from "./pages/TransactionConfirm";
 import ReturnRequest from "./pages/ReturnRequest";
 import ReturnComplete from "./pages/ReturnComplete";
 import RentalConfirm from "./pages/RentalConfirm";
+import ContractDetail from "./pages/ContractDetail";
 import { BookRedirect } from "./components/BookRedirect";
 
 const queryClient = new QueryClient();
@@ -51,7 +52,8 @@ const App = () => (
             <Route path="/transaction-confirm/:id" element={<TransactionConfirm />} />
             <Route path="/return-request/:id" element={<ReturnRequest />} />
             <Route path="/return-complete/:id" element={<ReturnComplete />} />
-            <Route path="/rental/confirm/:transactionId" element={<RentalConfirm />} />
+          <Route path="/rental/confirm/:transactionId" element={<RentalConfirm />} />
+          <Route path="/contracts/:contractId" element={<ContractDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -245,59 +245,28 @@ const BookDetail = () => {
     }
   };
 
-  const handleRentalHandshakeStart = async () => {
-    if (!book || !existingTransaction) return;
+  const handleRentalHandshake = async () => {
+    if (!book || !user) return;
 
     try {
-      // Update transaction status
-      const { error: transactionError } = await supabase
-        .from('transactions')
-        .update({ 
-          type: 'rental',
-          status: 'RENTAL_HANDSHAKE_PENDING' 
-        })
-        .eq('id', existingTransaction.id);
-
-      if (transactionError) {
-        toast({
-          title: "핸드셰이크 시작 실패",
-          description: transactionError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Create rental handshake with 30 minutes expiry
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 30);
-
-      const { error: handshakeError } = await supabase
-        .from('rental_handshakes')
-        .insert({
-          transaction_id: existingTransaction.id,
-          expires_at: expiresAt.toISOString(),
-        });
-
-      if (handshakeError) {
-        toast({
-          title: "핸드셰이크 생성 실패",
-          description: handshakeError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "대여 핸드셰이크 시작",
-        description: "30분 내에 양측이 확정해야 합니다.",
+      // Create a rental contract
+      const { data, error } = await supabase.functions.invoke('create-rental-contract', {
+        body: { bookId: book.id }
       });
 
-      // Navigate to confirmation page
-      navigate(`/rental/confirm/${existingTransaction.id}`);
-    } catch (error) {
+      if (error) throw error;
+
       toast({
-        title: "오류가 발생했습니다",
-        description: "다시 시도해 주세요.",
+        title: "Success",
+        description: "Rental contract created! Both parties need to confirm.",
+      });
+
+      navigate(`/contracts/${data.contract.id}`);
+    } catch (error) {
+      console.error("Error creating rental contract:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create rental contract",
         variant: "destructive",
       });
     }
@@ -551,16 +520,16 @@ const BookDetail = () => {
                         판매 거래 완료
                       </Button>
                     )}
-                    {book.for_rental && (
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="w-full"
-                        onClick={handleRentalHandshakeStart}
-                      >
-                        대여 핸드셰이크 시작
-                      </Button>
-                    )}
+                     {book.for_rental && (
+                       <Button
+                         variant="outline"
+                         size="lg"
+                         className="w-full"
+                         onClick={handleRentalHandshake}
+                       >
+                         대여 핸드셰이크 시작
+                       </Button>
+                     )}
                   </div>
                 )}
                 

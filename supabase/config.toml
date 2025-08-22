@@ -1,1 +1,36 @@
 project_id = "wnjegclewakqxqyztylt"
+
+[auth]
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.external.google]
+enabled = false
+
+[auth.external.github]
+enabled = false
+
+[auth.session]
+timebox = 86400
+inactivity_timeout = 3600
+
+[functions.get-kakao-api-key]
+verify_jwt = false
+
+[functions.search-book]
+verify_jwt = false
+
+[functions.create-rental-contract]
+verify_jwt = true
+
+[functions.contract-agree]
+verify_jwt = true
+
+[functions.contract-return-request]
+verify_jwt = true
+
+[functions.contract-return-agree]
+verify_jwt = true
+
+[functions.process-daily-charges]
+verify_jwt = false

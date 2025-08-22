@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin, Star, Clock, Filter } from "lucide-react";
+import { Search, MapPin, Star, Clock, Filter, Eye, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -353,20 +353,52 @@ const Books = () => {
                 </CardContent>
                 
                 <CardFooter className="p-4 pt-0">
-                  <Button 
-                    className="w-full" 
-                    variant={book.status === 'available' ? "warm" : "ghost"}
-                    disabled={book.status !== 'available' || book.user_id === user?.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBorrowRequest(book.id);
-                    }}
-                  >
-                     {book.status === 'available' 
-                      ? (book.user_id === user?.id ? "내 책" : "메시지 보내기")
-                      : (book.status === 'rented' ? '대여중' : '판매완료')
-                     }
-                  </Button>
+                  {book.user_id === user?.id ? (
+                    // 내가 등록한 책인 경우 - 보기/수정 버튼
+                    <div className="flex gap-2 w-full">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/books/${book.id}`);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                        보기
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/edit-book/${book.id}`);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                        수정
+                      </Button>
+                    </div>
+                  ) : (
+                    // 다른 사용자의 책인 경우 - 대여/구매 요청 버튼
+                    <Button 
+                      className="w-full" 
+                      variant={book.status === 'available' ? "warm" : "ghost"}
+                      disabled={book.status !== 'available'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBorrowRequest(book.id);
+                      }}
+                    >
+                      {book.status === 'available' 
+                        ? `${book.transaction_type === "sale" ? "구매" : "대여"} 요청`
+                        : (book.status === 'rented' ? '대여중' : '판매완료')
+                      }
+                    </Button>
+                  )}
+                </CardFooter>
                 </CardFooter>
               </Card>
             ))}

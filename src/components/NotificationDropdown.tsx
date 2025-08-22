@@ -307,28 +307,6 @@ export const NotificationDropdown = () => {
                         : formatTimeAgo(request.created_at)
                       }
                     </p>
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="h-8 text-xs px-3 bg-green-600 hover:bg-green-700"
-                        onClick={() => handleRequestResponse(request.id, 'approved')}
-                        disabled={loading}
-                      >
-                        <Check className="h-3 w-3 mr-1" />
-                        승인
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50"
-                        onClick={() => handleRequestResponse(request.id, 'rejected')}
-                        disabled={loading}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        거절
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </div>

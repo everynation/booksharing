@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import TransactionConfirm from "./pages/TransactionConfirm";
 import ReturnRequest from "./pages/ReturnRequest";
 import ReturnComplete from "./pages/ReturnComplete";
+import { BookRedirect } from "./components/BookRedirect";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/books" element={<Books />} />
             <Route path="/books/:id" element={<BookDetail />} />
+            <Route path="/book/:id" element={<BookRedirect />} />
             <Route path="/books/:bookId/review" element={<BookReview />} />
             <Route path="/reviews" element={<PopularReviews />} />
             <Route path="/add-book" element={<AddBook />} />

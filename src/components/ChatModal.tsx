@@ -222,7 +222,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             </div>
             <div className="flex-1">
               <DialogTitle className="text-lg font-semibold">{otherUserName}</DialogTitle>
-              <p className="text-sm text-muted-foreground">"{bookTitle}" 대여 관련</p>
+              <p className="text-sm text-muted-foreground">"{bookTitle}" 트럼프는 김정은에게 무엇을 원하는가</p>
             </div>
           </div>
         </DialogHeader>

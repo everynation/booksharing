@@ -229,7 +229,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               <p 
                 className="text-sm text-primary hover:text-primary/80 cursor-pointer underline"
                 onClick={() => {
-                  navigate(`/book/${bookId}`);
+                  navigate(`/books/${bookId}`);
                   onClose();
                 }}
               >

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, X } from 'lucide-react';
+import { Send, User, X, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -28,6 +29,15 @@ interface Message {
   sender_name: string;
 }
 
+interface RentalContract {
+  id: string;
+  status: string;
+  owner_id: string;
+  borrower_id: string;
+  owner_confirmed: boolean;
+  borrower_confirmed: boolean;
+}
+
 export const ChatModal: React.FC<ChatModalProps> = ({
   isOpen,
   onClose,
@@ -42,7 +52,34 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [contract, setContract] = useState<RentalContract | null>(null);
+  const [contractLoading, setContractLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // 대여 계약 정보 가져오기
+  const fetchContract = async () => {
+    if (!user || !bookId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('rental_contracts')
+        .select('id, status, owner_id, borrower_id, owner_confirmed, borrower_confirmed')
+        .eq('book_id', bookId)
+        .or(`owner_id.eq.${user.id},borrower_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching contract:', error);
+        return;
+      }
+
+      setContract(data);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   // 실제 메시지 목록 가져오기
   const fetchMessages = async () => {
@@ -111,6 +148,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   useEffect(() => {
     if (isOpen && user) {
       fetchMessages();
+      fetchContract();
       
       // 실시간 메시지 구독 설정
       const channel = supabase
@@ -216,6 +254,153 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     });
   };
 
+  // 대여 시작 버튼 클릭 처리
+  const handleStartRental = async () => {
+    if (!user || !contract || contractLoading) return;
+
+    setContractLoading(true);
+    
+    try {
+      const { error } = await supabase.functions.invoke('contract-agree', {
+        method: 'POST',
+        body: { contractId: contract.id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "대여 동의 완료",
+        description: "대여 시작에 동의했습니다.",
+      });
+
+      // 계약 정보 다시 로드
+      await fetchContract();
+
+    } catch (error) {
+      console.error('Error agreeing to contract:', error);
+      toast({
+        title: "대여 동의 실패",
+        description: "대여 동의 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setContractLoading(false);
+    }
+  };
+
+  // 대여 계약 생성
+  const createRentalContract = async () => {
+    if (!user || !bookId || contractLoading) return;
+
+    setContractLoading(true);
+
+    try {
+      const { error } = await supabase.functions.invoke('create-rental-contract', {
+        method: 'POST',
+        body: { 
+          bookId,
+          borrowerId: user.id === otherUserId ? user.id : otherUserId
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "대여 계약 생성됨",
+        description: "대여 계약이 생성되었습니다.",
+      });
+
+      // 계약 정보 다시 로드
+      await fetchContract();
+
+    } catch (error) {
+      console.error('Error creating rental contract:', error);
+      toast({
+        title: "계약 생성 실패",
+        description: "대여 계약 생성 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setContractLoading(false);
+    }
+  };
+
+  // 대여 시작 버튼 렌더링
+  const renderRentalButton = () => {
+    if (!user) return null;
+
+    // 계약이 없는 경우 - 계약 생성 버튼
+    if (!contract) {
+      return (
+        <div className="p-3 border-t bg-accent/10">
+          <Button 
+            onClick={createRentalContract}
+            disabled={contractLoading}
+            className="w-full"
+            variant="outline"
+          >
+            <Play className="h-4 w-4 mr-2" />
+            대여 계약 생성
+          </Button>
+        </div>
+      );
+    }
+
+    // 계약이 PENDING 상태인 경우
+    if (contract.status === 'PENDING') {
+      const isOwner = user.id === contract.owner_id;
+      const isBorrower = user.id === contract.borrower_id;
+      const hasAgreed = isOwner ? contract.owner_confirmed : contract.borrower_confirmed;
+      const otherHasAgreed = isOwner ? contract.borrower_confirmed : contract.owner_confirmed;
+
+      return (
+        <div className="p-3 border-t bg-accent/10 space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Badge variant={hasAgreed ? "default" : "secondary"}>
+              내 동의: {hasAgreed ? "완료" : "대기중"}
+            </Badge>
+            <Badge variant={otherHasAgreed ? "default" : "secondary"}>
+              상대방 동의: {otherHasAgreed ? "완료" : "대기중"}
+            </Badge>
+          </div>
+          {!hasAgreed && (
+            <Button 
+              onClick={handleStartRental}
+              disabled={contractLoading}
+              className="w-full"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              대여 시작 동의
+            </Button>
+          )}
+          {hasAgreed && !otherHasAgreed && (
+            <p className="text-sm text-muted-foreground text-center">
+              상대방의 동의를 기다리고 있습니다...
+            </p>
+          )}
+          {hasAgreed && otherHasAgreed && (
+            <p className="text-sm text-green-600 text-center font-medium">
+              ✅ 대여가 시작되었습니다!
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // 활성 상태인 경우
+    if (contract.status === 'ACTIVE') {
+      return (
+        <div className="p-3 border-t bg-green-50 dark:bg-green-950">
+          <p className="text-sm text-green-700 dark:text-green-300 text-center font-medium">
+            ✅ 대여 진행 중
+          </p>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md h-[600px] p-0 gap-0">
@@ -267,6 +452,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             ))}
           </div>
         </ScrollArea>
+
+        {/* 대여 시작 버튼 */}
+        {renderRentalButton()}
 
         {/* 메시지 입력 영역 */}
         <div className="p-4 border-t bg-background">

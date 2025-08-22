@@ -44,6 +44,7 @@ export const NotificationDropdown = () => {
     userId: string;
     userName: string;
     bookTitle: string;
+    bookId: string;
     transactionId: string;
   } | null>(null);
 
@@ -250,6 +251,7 @@ export const NotificationDropdown = () => {
       userId: request.borrower_id,
       userName: request.borrower?.display_name || '익명',
       bookTitle: request.book?.title || '',
+      bookId: request.book_id,
       transactionId: request.id
     });
     setIsOpen(false); // 드롭다운 닫기
@@ -323,6 +325,7 @@ export const NotificationDropdown = () => {
           otherUserId={selectedChat.userId}
           otherUserName={selectedChat.userName}
           bookTitle={selectedChat.bookTitle}
+          bookId={selectedChat.bookId}
           transactionId={selectedChat.transactionId}
         />
       )}

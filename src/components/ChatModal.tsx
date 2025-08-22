@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeChatMessage } from '@/lib/sanitization';
+import { useNavigate } from 'react-router-dom';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface ChatModalProps {
   otherUserId: string;
   otherUserName: string;
   bookTitle: string;
+  bookId: string;
   transactionId: string;
 }
 
@@ -32,9 +34,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   otherUserId,
   otherUserName,
   bookTitle,
+  bookId,
   transactionId
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -222,7 +226,15 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             </div>
             <div className="flex-1">
               <DialogTitle className="text-lg font-semibold">{otherUserName}</DialogTitle>
-              <p className="text-sm text-muted-foreground">"{bookTitle}" 트럼프는 김정은에게 무엇을 원하는가</p>
+              <p 
+                className="text-sm text-primary hover:text-primary/80 cursor-pointer underline"
+                onClick={() => {
+                  navigate(`/book/${bookId}`);
+                  onClose();
+                }}
+              >
+                {bookTitle}
+              </p>
             </div>
           </div>
         </DialogHeader>

@@ -492,6 +492,7 @@ const BookDetail = () => {
           otherUserId={book.user_id}
           otherUserName={book.profiles.display_name || "익명"}
           bookTitle={book.title}
+          bookId={book.id}
           transactionId={existingTransaction.id}
         />
       )}

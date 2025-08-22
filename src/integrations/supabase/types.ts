@@ -22,13 +22,18 @@ export type Database = {
           created_at: string
           daily_rate: number | null
           description: string | null
+          for_rental: boolean | null
+          for_sale: boolean | null
           id: string
           isbn: string | null
+          late_daily: number | null
           late_fee_per_day: number | null
           latitude: number | null
           longitude: number | null
           price: number
+          rental_daily: number | null
           rental_terms: string | null
+          rental_weekly: number | null
           status: string
           title: string
           transaction_type: string
@@ -43,13 +48,18 @@ export type Database = {
           created_at?: string
           daily_rate?: number | null
           description?: string | null
+          for_rental?: boolean | null
+          for_sale?: boolean | null
           id?: string
           isbn?: string | null
+          late_daily?: number | null
           late_fee_per_day?: number | null
           latitude?: number | null
           longitude?: number | null
           price: number
+          rental_daily?: number | null
           rental_terms?: string | null
+          rental_weekly?: number | null
           status?: string
           title: string
           transaction_type: string
@@ -64,13 +74,18 @@ export type Database = {
           created_at?: string
           daily_rate?: number | null
           description?: string | null
+          for_rental?: boolean | null
+          for_sale?: boolean | null
           id?: string
           isbn?: string | null
+          late_daily?: number | null
           late_fee_per_day?: number | null
           latitude?: number | null
           longitude?: number | null
           price?: number
+          rental_daily?: number | null
           rental_terms?: string | null
+          rental_weekly?: number | null
           status?: string
           title?: string
           transaction_type?: string
@@ -154,6 +169,44 @@ export type Database = {
         }
         Relationships: []
       }
+      rental_handshakes: {
+        Row: {
+          borrower_confirmed: boolean | null
+          created_at: string
+          expires_at: string
+          id: string
+          owner_confirmed: boolean | null
+          transaction_id: string
+          updated_at: string
+        }
+        Insert: {
+          borrower_confirmed?: boolean | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          owner_confirmed?: boolean | null
+          transaction_id: string
+          updated_at?: string
+        }
+        Update: {
+          borrower_confirmed?: boolean | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          owner_confirmed?: boolean | null
+          transaction_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_handshakes_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           book_id: string
@@ -200,6 +253,7 @@ export type Database = {
           return_requested_at: string | null
           status: string
           total_amount: number | null
+          type: string | null
           updated_at: string
         }
         Insert: {
@@ -217,6 +271,7 @@ export type Database = {
           return_requested_at?: string | null
           status?: string
           total_amount?: number | null
+          type?: string | null
           updated_at?: string
         }
         Update: {
@@ -234,6 +289,7 @@ export type Database = {
           return_requested_at?: string | null
           status?: string
           total_amount?: number | null
+          type?: string | null
           updated_at?: string
         }
         Relationships: [

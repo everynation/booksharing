@@ -23,6 +23,8 @@ interface BookDetail {
   status: string;
   created_at: string;
   user_id: string;
+  for_sale: boolean;
+  for_rental: boolean;
   profiles: {
     display_name: string | null;
     phone: string | null;
@@ -196,29 +198,102 @@ const BookDetail = () => {
     }
   };
 
-  const handleTransactionComplete = async () => {
-    if (!existingTransaction) return;
+  const handleSaleComplete = async () => {
+    if (!book) return;
 
     try {
-      const { error } = await supabase
+      // Create sale transaction
+      const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
-        .update({ status: 'in_progress' }) // Change to in_progress instead of completed
-        .eq('id', existingTransaction.id);
+        .insert({
+          book_id: book.id,
+          owner_id: book.user_id,
+          borrower_id: book.user_id, // For sales, borrower is same as owner initially
+          type: 'sale',
+          status: 'SALE_COMPLETED',
+        })
+        .select()
+        .single();
 
-      if (error) {
+      if (transactionError) {
         toast({
-          title: "거래 완료 처리 실패",
-          description: error.message,
+          title: "판매 처리 실패",
+          description: transactionError.message,
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "거래 진행중",
-          description: "책을 받았습니다. 책 주인이 반납 인증을 완료하면 거래가 완료됩니다.",
-        });
-        
-        fetchBookDetail();
+        return;
       }
+
+      // Update book status
+      await supabase
+        .from('books')
+        .update({ status: 'sold' })
+        .eq('id', book.id);
+
+      toast({
+        title: "판매 완료",
+        description: "책이 성공적으로 판매되었습니다.",
+      });
+      
+      fetchBookDetail();
+    } catch (error) {
+      toast({
+        title: "오류가 발생했습니다",
+        description: "다시 시도해 주세요.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRentalHandshakeStart = async () => {
+    if (!book || !existingTransaction) return;
+
+    try {
+      // Update transaction status
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .update({ 
+          type: 'rental',
+          status: 'RENTAL_HANDSHAKE_PENDING' 
+        })
+        .eq('id', existingTransaction.id);
+
+      if (transactionError) {
+        toast({
+          title: "핸드셰이크 시작 실패",
+          description: transactionError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create rental handshake with 30 minutes expiry
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+      const { error: handshakeError } = await supabase
+        .from('rental_handshakes')
+        .insert({
+          transaction_id: existingTransaction.id,
+          expires_at: expiresAt.toISOString(),
+        });
+
+      if (handshakeError) {
+        toast({
+          title: "핸드셰이크 생성 실패",
+          description: handshakeError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "대여 핸드셰이크 시작",
+        description: "30분 내에 양측이 확정해야 합니다.",
+      });
+
+      // Navigate to confirmation page
+      navigate(`/rental/confirm/${existingTransaction.id}`);
     } catch (error) {
       toast({
         title: "오류가 발생했습니다",
@@ -463,7 +538,34 @@ const BookDetail = () => {
               </Card>
 
               <div className="space-y-4">
-                {getActionButton()}
+                {/* Owner Action Buttons - Only show to book owner */}
+                {user && book.user_id === user.id && (
+                  <div className="space-y-3">
+                    {book.for_sale && (
+                      <Button
+                        variant="warm"
+                        size="lg"
+                        className="w-full"
+                        onClick={handleSaleComplete}
+                      >
+                        판매 거래 완료
+                      </Button>
+                    )}
+                    {book.for_rental && (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full"
+                        onClick={handleRentalHandshakeStart}
+                      >
+                        대여 핸드셰이크 시작
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
+                {/* Non-owner Action Buttons */}
+                {(!user || book.user_id !== user.id) && getActionButton()}
                 
                 {/* Review Button */}
                 <Button

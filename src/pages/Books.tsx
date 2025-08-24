@@ -399,7 +399,6 @@ const Books = () => {
                     </Button>
                   )}
                 </CardFooter>
-                </CardFooter>
               </Card>
             ))}
           </div>

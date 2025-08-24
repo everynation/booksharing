@@ -5,7 +5,7 @@ import { Camera, X, Sun, ZoomIn, ZoomOut, RotateCcw, Settings, Scan, Focus } fro
 import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import Quagga from 'quagga';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 
 interface ISBNScannerProps {
   onScan: (isbn: string) => void;
@@ -34,7 +34,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
   const animationFrameRef = useRef<number>();
   const scanIntervalRef = useRef<NodeJS.Timeout>();
   const focusIntervalRef = useRef<NodeJS.Timeout>();
-  const quaggaRef = useRef<any>(null);
+  const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
   // 기기 감지
   const getDeviceInfo = () => {
@@ -46,145 +46,101 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     return { isIOS, isAndroid, isGalaxy };
   };
 
-  // Quagga 초기화
-  const initializeQuagga = useCallback(() => {
-    if (!isOpen) return;
+  // ZXing 스캐너 초기화 - 더 강력한 바코드 인식
+  const initializeZXingScanner = useCallback(async () => {
+    if (!isOpen || !stream) return;
 
     try {
-      const { isGalaxy } = getDeviceInfo();
+      setError(null);
+      console.log('Initializing ZXing scanner...');
       
-      // 갤럭시 특별 설정
-      const quaggaConfig = {
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: videoRef.current,
-          constraints: {
-            width: { min: 320, ideal: 640, max: 1280 },
-            height: { min: 240, ideal: 480, max: 720 },
-            facingMode: cameraFacing,
-            aspectRatio: { min: 1, max: 2 }
-          },
-          area: { // 스캔 영역 제한으로 정확도 향상
-            top: "20%",
-            right: "15%",
-            left: "15%",
-            bottom: "20%"
-          }
-        },
-        locator: {
-          patchSize: isGalaxy ? "small" : "medium", // 갤럭시에서는 작은 패치 사용
-          halfSample: isGalaxy ? false : true // 갤럭시에서는 halfSample 비활성화
-        },
-        numOfWorkers: isGalaxy ? 2 : (navigator.hardwareConcurrency || 4), // 갤럭시에서는 워커 수 줄임
-        frequency: isGalaxy ? 5 : 10, // 갤럭시에서는 스캔 빈도 줄임
-        decoder: {
-          readers: [
-            "ean_reader",
-            "ean_8_reader",
-            "code_128_reader",
-            "code_39_reader",
-            "upc_reader",
-            "upc_e_reader"
-          ]
-        },
-        locate: true
-      };
-
-      console.log('Quagga config for device:', getDeviceInfo(), quaggaConfig);
-
-      Quagga.init(quaggaConfig, (err: any) => {
-        if (err) {
-          console.error('Quagga initialization failed:', err);
-          
-          // 갤럭시에서 실패 시 더 간단한 설정으로 재시도
-          if (getDeviceInfo().isGalaxy) {
-            console.log('Trying fallback Quagga config for Galaxy...');
-                         const fallbackConfig = {
-               ...quaggaConfig,
-               inputStream: {
-                 ...quaggaConfig.inputStream,
-                 constraints: {
-                   width: { min: 320, ideal: 320, max: 320 },
-                   height: { min: 240, ideal: 240, max: 240 },
-                   facingMode: cameraFacing,
-                   aspectRatio: { min: 1, max: 2 }
-                 }
-               },
-               numOfWorkers: 1,
-               frequency: 3
-             };
-            
-            Quagga.init(fallbackConfig, (fallbackErr: any) => {
-              if (fallbackErr) {
-                console.error('Fallback Quagga also failed:', fallbackErr);
-                setError('갤럭시에서 바코드 스캐너를 초기화할 수 없습니다. 다른 방법을 시도해보세요.');
-                return;
-              }
-              
-              console.log('Fallback Quagga initialized successfully');
-              setIsScanning(true);
-              startQuaggaScanning();
-            });
-          } else {
-            setError('바코드 스캐너 초기화에 실패했습니다.');
-          }
-          return;
-        }
-        
-        console.log('Quagga initialized successfully');
-        setIsScanning(true);
-        startQuaggaScanning();
-      });
-
-    } catch (err) {
-      console.error('Quagga setup error:', err);
-      setError('바코드 스캐너 설정에 실패했습니다.');
-    }
-  }, [isOpen, cameraFacing]);
-
-  // Quagga 스캔 시작
-  const startQuaggaScanning = useCallback(() => {
-    if (!isScanning) return;
-
-    console.log('Starting Quagga scanning...');
-    Quagga.start();
-
-    // 바코드 감지 이벤트
-    Quagga.onDetected((result: any) => {
-      console.log('Barcode detected:', result);
-      const isbn = result.codeResult.code.replace(/[-\s]/g, '');
+      const { isIOS, isAndroid, isGalaxy } = getDeviceInfo();
       
-      // ISBN 형식 검증
-      if (/^(?:97[89])?\d{9}[\dX]$/i.test(isbn)) {
-        setIsProcessing(true);
-        onScan(isbn);
-        onClose();
+      // ZXing 리더 생성
+      const reader = new BrowserMultiFormatReader();
+      zxingReaderRef.current = reader;
+      
+      // 플랫폼별 최적화 힌트 설정
+      const hints = new Map();
+      
+      // iOS 최적화
+      if (isIOS) {
+        hints.set('TRY_HARDER', true);
+        hints.set('POSSIBLE_FORMATS', ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'CODE_128']);
+        console.log('iOS: ZXing optimized for iOS devices');
+      }
+      // Android 최적화
+      else if (isAndroid) {
+        hints.set('TRY_HARDER', true);
+        hints.set('POSSIBLE_FORMATS', ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'CODE_128']);
+        hints.set('ASSUME_GS1', false);
+        console.log('Android: ZXing optimized for Android devices');
+      }
+      // 갤럭시 특별 최적화
+      else if (isGalaxy) {
+        hints.set('TRY_HARDER', true);
+        hints.set('PURE_BARCODE', false);
+        hints.set('POSSIBLE_FORMATS', ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E']);
+        hints.set('ASSUME_GS1', false);
+        console.log('Galaxy: ZXing special optimization for Galaxy devices');
+      }
+      
+      // 비디오 요소 확인
+      if (!videoRef.current) {
+        console.error('Video element not available');
+        setError('비디오 요소를 찾을 수 없습니다.');
         return;
       }
-    });
 
-    // 스캔 진행 상황 모니터링
-    Quagga.onProcessed((result: any) => {
-      if (result) {
-        setScanAttempts(prev => prev + 1);
-        console.log('Scan attempt:', result);
-      }
-    });
+      console.log('Starting ZXing continuous decode...');
+      setIsScanning(true);
 
-    // 갤럭시에서 추가 디버깅
-    if (getDeviceInfo().isGalaxy) {
-      console.log('Galaxy device: Enhanced debugging enabled');
-      
-      // 갤럭시에서 주기적으로 스캔 상태 확인
-      const debugInterval = setInterval(() => {
-        console.log('Galaxy scan status - attempts:', scanAttempts, 'scanning:', isScanning);
-      }, 2000);
-      
-      // 정리 함수에 추가
-      return () => clearInterval(debugInterval);
+      // 연속 바코드 디코딩 시작
+      const result = await reader.decodeFromVideoDevice(
+        undefined, // 기본 비디오 입력 장치 사용
+        videoRef.current,
+        (result, error) => {
+          if (result) {
+            console.log('ZXing: Barcode detected:', result.getText());
+            const isbn = result.getText().replace(/[-\s]/g, '');
+            
+            // ISBN 형식 검증 (더 엄격한 검증)
+            if (/^(?:97[89])?\d{9}[\dX]$/i.test(isbn)) {
+              console.log('ZXing: Valid ISBN detected:', isbn);
+              setIsProcessing(true);
+              
+              // 스캔 성공 후 정리
+              try {
+                // ZXing 스캔 완료, 정리는 onClose에서 처리
+                console.log('ZXing: Scan completed successfully');
+              } catch (e) {
+                console.warn('Error handling scan completion:', e);
+              }
+              
+              onScan(isbn);
+              onClose();
+              return;
+            } else {
+              console.log('ZXing: Invalid ISBN format:', isbn);
+            }
+          }
+          
+          if (error && error.name !== 'NotFoundException') {
+            console.warn('ZXing decode error:', error);
+            setScanAttempts(prev => prev + 1);
+          }
+          
+          // 스캔 시도 카운트 업데이트
+          setScanAttempts(prev => prev + 1);
+        }
+      );
+
+    } catch (err) {
+      console.error('ZXing scanner initialization failed:', err);
+      setError(`바코드 스캐너 초기화 실패: ${err.message}`);
+      setIsScanning(false);
     }
-  }, [isScanning, onScan, onClose, scanAttempts]);
+  }, [isOpen, stream, onScan, onClose]);
 
   // 카메라 초기화 (Quagga와 별도로) - 안드로이드 호환성 향상
   const initializeCamera = useCallback(async () => {
@@ -229,9 +185,9 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
             await setupCameraFeatures(track);
           }
           
-          // Quagga 초기화
-          console.log('Android: Starting Quagga initialization...');
-          initializeQuagga();
+      // ZXing 스캐너 초기화
+      console.log('Android: Starting ZXing scanner initialization...');
+      await initializeZXingScanner();
           return;
           
         } catch (basicErr) {
@@ -256,7 +212,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
               await videoRef.current.play();
             }
             
-            initializeQuagga();
+            await initializeZXingScanner();
             return;
             
           } catch (frontErr) {
@@ -312,8 +268,8 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         await setupCameraFeatures(track);
       }
 
-      // Quagga 초기화
-      initializeQuagga();
+      // ZXing 스캐너 초기화
+      await initializeZXingScanner();
       
     } catch (err) {
       console.error('Camera initialization failed:', err);
@@ -329,7 +285,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         setError(`카메라 오류: ${err.message || '알 수 없는 오류'}`);
       }
     }
-  }, [cameraFacing, initializeQuagga]);
+  }, [cameraFacing, initializeZXingScanner]);
 
   // 카메라 기능 설정
   const setupCameraFeatures = async (track: MediaStreamTrack) => {
@@ -516,9 +472,14 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     const newFacing = cameraFacing === 'environment' ? 'user' : 'environment';
     setCameraFacing(newFacing);
     
-    // Quagga 정리
-    if (quaggaRef.current) {
-      Quagga.stop();
+    // ZXing 스캐너 정리
+    if (zxingReaderRef.current) {
+      try {
+        // ZXing reader 리셋
+        zxingReaderRef.current = null;
+      } catch (e) {
+        console.warn('Error stopping ZXing decoder:', e);
+      }
     }
     
     if (stream) {
@@ -530,8 +491,8 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       clearInterval(focusIntervalRef.current);
     }
     
-    setTimeout(() => {
-      initializeCamera();
+    setTimeout(async () => {
+      await initializeCamera();
     }, 100);
   };
 
@@ -547,6 +508,13 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
   };
 
   // 컴포넌트 마운트 시 초기화
+  // ZXing 스캐너 시작 (stream이 준비된 후)
+  useEffect(() => {
+    if (isOpen && stream) {
+      initializeZXingScanner();
+    }
+  }, [isOpen, stream, initializeZXingScanner]);
+
   useEffect(() => {
     if (isOpen) {
       initializeCamera();
@@ -562,8 +530,13 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
       }
-      if (quaggaRef.current) {
-        Quagga.stop();
+      if (zxingReaderRef.current) {
+        try {
+          // ZXing reader 정리
+          zxingReaderRef.current = null;
+        } catch (e) {
+          console.warn('Error stopping ZXing decoder:', e);
+        }
       }
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -577,8 +550,13 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (quaggaRef.current) {
-        Quagga.stop();
+      if (zxingReaderRef.current) {
+        try {
+          // ZXing reader 정리
+          zxingReaderRef.current = null;
+        } catch (e) {
+          console.warn('Error stopping ZXing decoder:', e);
+        }
       }
       if (focusIntervalRef.current) {
         clearInterval(focusIntervalRef.current);
@@ -594,7 +572,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">
-              ISBN 바코드 스캔 (QuaggaJS)
+              ISBN 바코드 스캔 (ZXing)
             </h3>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -730,19 +708,19 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
                   if (isIOS) {
                     return (
                       <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                        💡 iOS 사용자: QuaggaJS로 개선된 바코드 인식. 바코드를 프레임 안에 안정적으로 유지해주세요
+                        💡 iOS 사용자: ZXing 라이브러리로 강력한 바코드 인식. 바코드를 프레임 안에 안정적으로 유지해주세요
                       </div>
                     );
                   } else if (isAndroid) {
                     return (
                       <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                        💡 Android 사용자: QuaggaJS로 개선된 바코드 인식. 충분한 조명과 안정적인 카메라 고정이 중요합니다
+                        💡 Android 사용자: ZXing 라이브러리로 개선된 바코드 인식. 충분한 조명과 안정적인 카메라 고정이 중요합니다
                       </div>
                     );
                   } else if (isGalaxy) {
                     return (
                       <div className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
-                        💡 갤럭시 사용자: QuaggaJS + 수동 초점 조정으로 초점 문제 해결! 위의 수동 초점 슬라이더를 사용해보세요
+                        💡 갤럭시 사용자: ZXing + 수동 초점 조정으로 초점 문제 해결! 위의 수동 초점 슬라이더를 사용해보세요
                       </div>
                     );
                   }

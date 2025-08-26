@@ -481,13 +481,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({
       return (
         <div className="p-3 border-t bg-accent/10">
             <Button 
-              onClick={createRentalContract}
+              onClick={handleMeetRequest}
               disabled={contractLoading}
               className="w-full"
               variant="outline"
             >
-              <Play className="h-4 w-4 mr-2" />
-              {user?.id === otherUserId ? "빌렸어요" : "빌려줬어요"}
+              <Users className="h-4 w-4 mr-2" />
+              만났어요
             </Button>
         </div>
       );

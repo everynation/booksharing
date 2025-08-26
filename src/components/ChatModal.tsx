@@ -604,7 +604,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         {renderRentalButton()}
 
         {/* 만났어요 버튼 */}
-        {contract?.status === 'ACTIVE' && (
+        {contract?.status === 'PENDING' && contract?.owner_confirmed && contract?.borrower_confirmed && (
           <div className="p-3 border-t bg-accent/10">
             <Button 
               onClick={handleMeetRequest}
@@ -652,6 +652,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         <MeetConfirmDialog
           isOpen={showMeetDialog}
           onConfirm={handleMeetConfirm}
+          onCancel={() => setShowMeetDialog(false)}
           otherUserName={otherUserName}
           isInitiator={isHandshakeInitiator}
         />

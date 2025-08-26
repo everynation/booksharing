@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 interface MeetConfirmDialogProps {
   isOpen: boolean;
   onConfirm: () => void;
+  onCancel: () => void;
   otherUserName: string;
   isInitiator: boolean;
 }
@@ -12,6 +13,7 @@ interface MeetConfirmDialogProps {
 export const MeetConfirmDialog: React.FC<MeetConfirmDialogProps> = ({
   isOpen,
   onConfirm,
+  onCancel,
   otherUserName,
   isInitiator
 }) => {
@@ -20,18 +22,21 @@ export const MeetConfirmDialog: React.FC<MeetConfirmDialogProps> = ({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {isInitiator ? "만남을 요청했습니다" : `${otherUserName}님이 만남을 요청했습니다`}
+            대여를 진행할까요?
           </AlertDialogTitle>
           <AlertDialogDescription>
             {isInitiator 
-              ? `${otherUserName}님의 확인을 기다리고 있습니다. 실제로 만나셨다면 확인 버튼을 눌러주세요.`
-              : `실제로 ${otherUserName}님과 만나셨다면 확인 버튼을 눌러주세요.`
+              ? `${otherUserName}님과 실제로 만나셨나요? 대여를 시작하시겠습니까?`
+              : `${otherUserName}님과 실제로 만나셨나요? 대여를 시작하시겠습니까?`
             }
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
+          <Button variant="outline" onClick={onCancel}>
+            아니오
+          </Button>
           <AlertDialogAction onClick={onConfirm}>
-            확인
+            예
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

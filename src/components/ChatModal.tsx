@@ -604,7 +604,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         {renderRentalButton()}
 
         {/* 만났어요 버튼 */}
-        {contract?.status === 'PENDING' && contract?.owner_confirmed && contract?.borrower_confirmed && (
+        {contract?.status === 'PENDING' && (
           <div className="p-3 border-t bg-accent/10">
             <Button 
               onClick={handleMeetRequest}

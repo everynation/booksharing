@@ -600,6 +600,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({
           </div>
         </ScrollArea>
 
+        {/* 대여 시작 버튼 */}
+        {renderRentalButton()}
+
         {/* 만났어요 버튼 */}
         {contract?.status === 'ACTIVE' && (
           <div className="p-3 border-t bg-accent/10">
@@ -607,16 +610,21 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               onClick={handleMeetRequest}
               className="w-full"
               variant="warm"
-              disabled={handshake && !handshake.owner_confirmed && !handshake.borrower_confirmed}
+              disabled={handshake && new Date() > new Date(handshake.expires_at)}
             >
               <Users className="h-4 w-4 mr-2" />
               만났어요
             </Button>
+            {handshake && (
+              <div className="mt-2 text-sm text-center text-muted-foreground">
+                {handshake.owner_confirmed && handshake.borrower_confirmed
+                  ? "✅ 양쪽 모두 만남을 확인했습니다!"
+                  : "상대방의 확인을 기다리고 있습니다..."
+                }
+              </div>
+            )}
           </div>
         )}
-
-        {/* 대여 시작 버튼 */}
-        {renderRentalButton()}
 
         {/* 메시지 입력 영역 */}
         <div className="p-4 border-t bg-background">

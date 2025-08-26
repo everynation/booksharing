@@ -14,7 +14,7 @@ import MyPage from "./pages/MyPage";
 import ReturnProof from "./pages/ReturnProof";
 import RentalRestriction from "./pages/RentalRestriction";
 import RewardNotification from "./pages/RewardNotification";
-import TestScanner from "./pages/TestScanner";
+
 import EditBook from "./pages/EditBook";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -46,7 +46,7 @@ const App = () => (
             <Route path="/return-proof/:transactionId" element={<ReturnProof />} />
             <Route path="/rental-restriction" element={<RentalRestriction />} />
             <Route path="/rewards" element={<RewardNotification />} />
-            <Route path="/test-scanner" element={<TestScanner />} />
+
             <Route path="/edit-book/:id" element={<EditBook />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/transaction-confirm/:id" element={<TransactionConfirm />} />

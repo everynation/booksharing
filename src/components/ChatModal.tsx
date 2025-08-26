@@ -526,8 +526,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             </p>
           )}
           {hasAgreed && otherHasAgreed && (
-            <p className="text-sm text-green-600 text-center font-medium">
-              ✅ 대여가 시작되었습니다!
+            <p className="text-sm text-blue-600 text-center font-medium">
+              ✅ 양쪽 모두 동의했습니다! 만나서 "만났어요" 버튼을 눌러주세요.
             </p>
           )}
         </div>

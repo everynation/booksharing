@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, X, Play } from 'lucide-react';
+import { Send, User, X, Play, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeChatMessage } from '@/lib/sanitization';
 import { useNavigate } from 'react-router-dom';
+import { MeetConfirmDialog } from './MeetConfirmDialog';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -38,6 +39,14 @@ interface RentalContract {
   borrower_confirmed: boolean;
 }
 
+interface RentalHandshake {
+  id: string;
+  transaction_id: string;
+  owner_confirmed: boolean;
+  borrower_confirmed: boolean;
+  expires_at: string;
+}
+
 export const ChatModal: React.FC<ChatModalProps> = ({
   isOpen,
   onClose,
@@ -54,6 +63,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [contract, setContract] = useState<RentalContract | null>(null);
   const [contractLoading, setContractLoading] = useState(false);
+  const [handshake, setHandshake] = useState<RentalHandshake | null>(null);
+  const [showMeetDialog, setShowMeetDialog] = useState(false);
+  const [isHandshakeInitiator, setIsHandshakeInitiator] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // 대여 계약 정보 가져오기
@@ -76,6 +88,30 @@ export const ChatModal: React.FC<ChatModalProps> = ({
       }
 
       setContract(data);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  // 핸드셰이크 정보 가져오기
+  const fetchHandshake = async () => {
+    if (!user || !transactionId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('rental_handshakes')
+        .select('*')
+        .eq('transaction_id', transactionId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching handshake:', error);
+        return;
+      }
+
+      setHandshake(data);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -149,10 +185,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     if (isOpen && user) {
       fetchMessages();
       fetchContract();
+      fetchHandshake();
       
       // 실시간 메시지 구독 설정
-      const channel = supabase
-        .channel('schema-db-changes')
+      const messagesChannel = supabase
+        .channel('messages-changes')
         .on(
           'postgres_changes',
           {
@@ -174,8 +211,35 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         )
         .subscribe();
 
+      // 핸드셰이크 실시간 구독 설정
+      const handshakeChannel = supabase
+        .channel('handshake-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'rental_handshakes',
+            filter: `transaction_id=eq.${transactionId}`
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const handshakeData = payload.new as RentalHandshake;
+              setHandshake(handshakeData);
+              
+              // 새로운 핸드셰이크가 생성되었고 현재 사용자가 생성자가 아닌 경우 팝업 표시
+              if (payload.eventType === 'INSERT') {
+                setIsHandshakeInitiator(false);
+                setShowMeetDialog(true);
+              }
+            }
+          }
+        )
+        .subscribe();
+
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(messagesChannel);
+        supabase.removeChannel(handshakeChannel);
       };
     }
   }, [isOpen, user, transactionId, otherUserName]);
@@ -252,6 +316,89 @@ export const ChatModal: React.FC<ChatModalProps> = ({
       minute: '2-digit',
       hour12: false 
     });
+  };
+
+  // "만났어요" 버튼 클릭 처리
+  const handleMeetRequest = async () => {
+    if (!user || !transactionId) return;
+
+    try {
+      // 새로운 핸드셰이크 생성
+      const { data, error } = await supabase
+        .from('rental_handshakes')
+        .insert({
+          transaction_id: transactionId,
+          owner_confirmed: false,
+          borrower_confirmed: false,
+          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10분 후 만료
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setHandshake(data);
+      setIsHandshakeInitiator(true);
+      setShowMeetDialog(true);
+
+      toast({
+        title: "만남 요청됨",
+        description: "상대방에게 만남을 요청했습니다.",
+      });
+
+    } catch (error) {
+      console.error('Error creating handshake:', error);
+      toast({
+        title: "만남 요청 실패",
+        description: "만남 요청 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 만남 확인 처리
+  const handleMeetConfirm = async () => {
+    if (!user || !handshake || !transactionId) return;
+
+    try {
+      // 현재 사용자가 owner인지 borrower인지 확인
+      const { data: transaction } = await supabase
+        .from('transactions')
+        .select('owner_id, borrower_id')
+        .eq('id', transactionId)
+        .single();
+
+      if (!transaction) throw new Error('Transaction not found');
+
+      const isOwner = user.id === transaction.owner_id;
+      const updateField = isOwner ? 'owner_confirmed' : 'borrower_confirmed';
+
+      // 핸드셰이크 업데이트
+      const { error } = await supabase
+        .from('rental_handshakes')
+        .update({ [updateField]: true })
+        .eq('id', handshake.id);
+
+      if (error) throw error;
+
+      setShowMeetDialog(false);
+
+      toast({
+        title: "만남 확인됨",
+        description: "만남이 확인되었습니다.",
+      });
+
+      // 핸드셰이크 정보 다시 로드
+      await fetchHandshake();
+
+    } catch (error) {
+      console.error('Error confirming meet:', error);
+      toast({
+        title: "만남 확인 실패",
+        description: "만남 확인 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
   };
 
   // 대여 시작 버튼 클릭 처리
@@ -453,6 +600,21 @@ export const ChatModal: React.FC<ChatModalProps> = ({
           </div>
         </ScrollArea>
 
+        {/* 만났어요 버튼 */}
+        {contract?.status === 'ACTIVE' && (
+          <div className="p-3 border-t bg-accent/10">
+            <Button 
+              onClick={handleMeetRequest}
+              className="w-full"
+              variant="warm"
+              disabled={handshake && !handshake.owner_confirmed && !handshake.borrower_confirmed}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              만났어요
+            </Button>
+          </div>
+        )}
+
         {/* 대여 시작 버튼 */}
         {renderRentalButton()}
 
@@ -477,6 +639,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             </Button>
           </div>
         </div>
+
+        {/* 만남 확인 팝업 */}
+        <MeetConfirmDialog
+          isOpen={showMeetDialog}
+          onConfirm={handleMeetConfirm}
+          otherUserName={otherUserName}
+          isInitiator={isHandshakeInitiator}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -458,6 +458,10 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: string
       }
+      update_book_coordinates: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

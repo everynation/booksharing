@@ -27,13 +27,17 @@ interface AddressInputProps {
   onChange: (address: string, coordinates?: { lat: number; lng: number }) => void;
   placeholder?: string;
   showMap?: boolean;
+  onLocationSelect?: (latitude: number, longitude: number, address: string) => void;
+  className?: string;
 }
 
 export const AddressInput: React.FC<AddressInputProps> = ({
   value = '',
   onChange,
   placeholder = '주소를 입력하세요',
-  showMap = false
+  showMap = false,
+  onLocationSelect,
+  className
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -299,6 +303,11 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     setSearchQuery('');
     setSearchResults([]);
     setIsSearchOpen(false); // 모달 닫기
+    
+    // Call onLocationSelect if provided (for simplified usage)
+    if (onLocationSelect) {
+      onLocationSelect(coordinates.lat, coordinates.lng, address);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -360,7 +369,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
 
   return (
     <>
-      <div className="relative">
+      <div className={`relative ${className || ''}`}>
         <Input
           value={value}
           placeholder={placeholder}

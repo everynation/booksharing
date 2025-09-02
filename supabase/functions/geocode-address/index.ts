@@ -1,0 +1,103 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const { address } = await req.json();
+    
+    if (!address) {
+      return new Response(
+        JSON.stringify({ error: 'Address is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Get Kakao API key from environment
+    const kakaoApiKey = Deno.env.get('KAKAO_API_KEY');
+    
+    if (!kakaoApiKey) {
+      console.error('KAKAO_API_KEY not found in environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Geocoding service not available' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Call Kakao Local API for geocoding
+    const geocodeUrl = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`;
+    
+    const response = await fetch(geocodeUrl, {
+      headers: {
+        'Authorization': `KakaoAK ${kakaoApiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Kakao API error:', response.status, response.statusText);
+      return new Response(
+        JSON.stringify({ error: 'Geocoding failed' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const data = await response.json();
+    
+    if (!data.documents || data.documents.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          latitude: null, 
+          longitude: null, 
+          message: 'No coordinates found for this address' 
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const location = data.documents[0];
+    const latitude = parseFloat(location.y);
+    const longitude = parseFloat(location.x);
+
+    return new Response(
+      JSON.stringify({ 
+        latitude, 
+        longitude,
+        address: location.address_name || address
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  } catch (error) {
+    console.error('Error in geocode-address function:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});

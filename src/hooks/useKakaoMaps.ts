@@ -61,6 +61,8 @@ export function useKakaoMaps() {
         console.log("[useKakaoMaps] API key obtained");
         
         const KAKAO_SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services&autoload=false`;
+        
+        console.log("[useKakaoMaps] Using SDK URL:", KAKAO_SDK_URL);
 
         // Remove any existing script
         const existingScripts = document.querySelectorAll('script[src*="dapi.kakao.com"]');
@@ -78,8 +80,8 @@ export function useKakaoMaps() {
         console.log("[useKakaoMaps] Creating new script element");
         const script = document.createElement('script');
         script.src = KAKAO_SDK_URL;
-        script.async = true;
-        script.crossOrigin = 'anonymous';
+        script.async = false; // Changed to false for better reliability
+        script.defer = true;
         
         const timeoutId = setTimeout(() => {
           console.error("[useKakaoMaps] Script loading timeout");
@@ -120,8 +122,10 @@ export function useKakaoMaps() {
         
         script.onerror = (error) => {
           console.error("[useKakaoMaps] Script load failed:", error);
+          console.error("[useKakaoMaps] Script src was:", script.src);
+          console.error("[useKakaoMaps] API key used:", apiKey);
           clearTimeout(timeoutId);
-          setError('지도 스크립트 로딩에 실패했습니다.');
+          setError('지도 API 로딩에 실패했습니다. API 키를 확인해 주세요.');
           reject(new Error('Kakao Maps SDK load failed'));
         };
         

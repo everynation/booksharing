@@ -46,10 +46,10 @@ export const useLocationPicker = ({ onConfirm }: UseLocationPickerProps = {}): U
 
       if (error) {
         console.error('Reverse geocoding error:', error);
-        return `위도: ${lat.toFixed(6)}, 경도: ${lng.toFixed(6)}`;
+      return '주소를 확인할 수 없습니다.';
       }
 
-      return data.address || `위도: ${lat.toFixed(6)}, 경도: ${lng.toFixed(6)}`;
+      return data.address || '주소를 확인할 수 없습니다.';
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
       return `위도: ${lat.toFixed(6)}, 경도: ${lng.toFixed(6)}`;

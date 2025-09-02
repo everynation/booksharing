@@ -79,10 +79,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 <span className="text-sm font-medium">선택된 위치</span>
               </div>
               <p className="text-sm text-muted-foreground pl-6">
-                {selectedLocation.address || `위도: ${selectedLocation.lat.toFixed(6)}, 경도: ${selectedLocation.lng.toFixed(6)}`}
-              </p>
-              <p className="text-xs text-muted-foreground pl-6">
-                위도: {selectedLocation.lat.toFixed(6)}, 경도: {selectedLocation.lng.toFixed(6)}
+                {selectedLocation.address || '주소를 확인하는 중...'}
               </p>
             </div>
           </div>

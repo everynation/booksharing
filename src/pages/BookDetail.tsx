@@ -84,17 +84,30 @@ const BookDetail = () => {
         return;
       }
 
-      // Fetch owner profile separately
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('display_name, phone, address')
-        .eq('user_id', bookData.user_id)
-        .maybeSingle();
+      // Fetch owner profile using secure function
+      const { data: profileData, error: profileError } = await supabase.rpc('get_book_owner_info', {
+        owner_user_id: bookData.user_id
+      });
+      
       if (profileError) {
         console.error('Error fetching profile:', profileError);
       }
 
-      setBook({ ...(bookData as any), profiles: profileData ?? null } as any);
+      
+      // Transform the data to match expected format
+      const profile = profileData?.[0] ? {
+        display_name: profileData[0].display_name,
+        address: profileData[0].address,
+        // Phone is no longer accessible for security reasons
+        phone: null
+      } : null;
+
+      const enrichedBook = {
+        ...bookData,
+        profiles: profile
+      };
+
+      setBook(enrichedBook as BookDetail);
 
       // Check for existing transaction if user is logged in
       if (user) {
@@ -493,12 +506,7 @@ const BookDetail = () => {
                       <span className="text-sm">{book.profiles.address}</span>
                     </div>
                   )}
-                  {book.profiles?.phone && existingTransaction && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{book.profiles.phone}</span>
-                    </div>
-                  )}
+                  {/* Phone number removed for security reasons */}
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">등록일: {new Date(book.created_at).toLocaleDateString()}</span>

@@ -82,11 +82,15 @@ const Books = () => {
       // Get unique user IDs from books
       const userIds = [...new Set(booksData.map(book => book.user_id))];
       
-      // Fetch profiles for those users
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, address')
-        .in('user_id', userIds);
+      // Fetch safe profile data using secure function
+      const profilePromises = userIds.map(async (userId) => {
+        const { data } = await supabase.rpc('get_book_owner_info', { 
+          owner_user_id: userId 
+        });
+        return { user_id: userId, ...data?.[0] };
+      });
+      
+      const profilesData = await Promise.all(profilePromises);
 
       // Create a map of user_id to profile
       const profilesMap = (profilesData || []).reduce((acc, profile) => {

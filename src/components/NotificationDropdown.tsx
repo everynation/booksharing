@@ -81,14 +81,16 @@ export const NotificationDropdown = () => {
         userIds.add(item.owner_id);
       });
       
-      // Get profiles
+      // Get profiles using secure function
       let profiles: any[] = [];
       if (userIds.size > 0) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('user_id, display_name')
-          .in('user_id', Array.from(userIds));
-        profiles = profilesData || [];
+        const profilePromises = Array.from(userIds).map(async (userId) => {
+          const { data } = await supabase.rpc('get_user_display_name_secure', { 
+            user_id_param: userId 
+          });
+          return { user_id: userId, display_name: data };
+        });
+        profiles = await Promise.all(profilePromises);
       }
 
       // Get last messages for each transaction

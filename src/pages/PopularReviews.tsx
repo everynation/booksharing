@@ -68,11 +68,14 @@ const PopularReviews = () => {
         .select('id, title, author, cover_image_url')
         .in('id', bookIds);
 
-      // Fetch user profiles
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', userIds);
+      // Fetch user profiles using secure function
+      const profilePromises = userIds.map(async (userId) => {
+        const { data } = await supabase.rpc('get_user_display_name_secure', { 
+          user_id_param: userId 
+        });
+        return { user_id: userId, display_name: data };
+      });
+      const profilesData = await Promise.all(profilePromises);
 
       // Create maps for easier lookup
       const booksMap = (booksData || []).reduce((acc, book) => {

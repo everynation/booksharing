@@ -447,7 +447,14 @@ export type Database = {
         Args: { book_id_param: string; user_id_param: string }
         Returns: boolean
       }
-      get_user_display_name: {
+      get_book_owner_info: {
+        Args: { owner_user_id: string }
+        Returns: {
+          address: string
+          display_name: string
+        }[]
+      }
+      get_user_display_name_secure: {
         Args: { user_id_param: string }
         Returns: string
       }

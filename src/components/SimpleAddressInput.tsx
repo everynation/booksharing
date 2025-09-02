@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { MapPin, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,21 +13,20 @@ interface SimpleAddressInputProps {
 export const SimpleAddressInput = ({ onLocationSelect, placeholder = "주소를 입력하세요", className }: SimpleAddressInputProps) => {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<Array<{address: string, latitude: number, longitude: number}>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const handleGeocode = async () => {
-    if (!address.trim()) {
-      toast({
-        title: "주소를 입력해주세요",
-        description: "검색할 주소를 입력해주세요.",
-        variant: "destructive",
-      });
+  const searchAddresses = async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
 
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('geocode-address', {
-        body: { address: address.trim() }
+        body: { address: query.trim() }
       });
 
       if (error) {
@@ -36,57 +34,87 @@ export const SimpleAddressInput = ({ onLocationSelect, placeholder = "주소를 
       }
 
       if (data.latitude && data.longitude) {
-        onLocationSelect(data.latitude, data.longitude, data.address);
-        setAddress(""); // Clear input after successful search
-        toast({
-          title: "위치 검색 완료",
-          description: `${data.address}의 위치를 찾았습니다.`,
-        });
+        setSuggestions([{
+          address: data.address,
+          latitude: data.latitude,
+          longitude: data.longitude
+        }]);
+        setShowSuggestions(true);
       } else {
-        toast({
-          title: "위치를 찾을 수 없습니다",
-          description: "입력한 주소의 위치를 찾을 수 없습니다. 다른 주소를 시도해보세요.",
-          variant: "destructive",
-        });
+        setSuggestions([]);
+        setShowSuggestions(false);
       }
     } catch (error) {
-      console.error('Geocoding error:', error);
-      toast({
-        title: "위치 검색 실패",
-        description: "주소 검색 중 오류가 발생했습니다. 다시 시도해주세요.",
-        variant: "destructive",
-      });
+      console.error('Address search error:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleGeocode();
-    }
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchAddresses(address);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [address]);
+
+  const handleSuggestionClick = (suggestion: {address: string, latitude: number, longitude: number}) => {
+    onLocationSelect(suggestion.latitude, suggestion.longitude, suggestion.address);
+    setAddress(suggestion.address);
+    setShowSuggestions(false);
+    toast({
+      title: "위치 선택 완료",
+      description: `${suggestion.address}가 선택되었습니다.`,
+    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAddress(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    // 약간의 지연을 두어 suggestion 클릭이 가능하도록 함
+    setTimeout(() => setShowSuggestions(false), 200);
   };
 
   return (
-    <div className={`flex gap-2 ${className}`}>
-      <div className="relative flex-1">
+    <div className={`relative ${className}`}>
+      <div className="relative">
         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onChange={handleInputChange}
+          onBlur={handleInputBlur}
+          onFocus={() => address && suggestions.length > 0 && setShowSuggestions(true)}
           placeholder={placeholder}
           className="pl-10"
         />
+        {loading && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+          </div>
+        )}
       </div>
-      <Button 
-        onClick={handleGeocode} 
-        disabled={loading || !address.trim()}
-        size="default"
-      >
-        <Search className="h-4 w-4" />
-        {loading ? "검색중..." : "검색"}
-      </Button>
+      
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {suggestions.map((suggestion, index) => (
+            <div
+              key={index}
+              className="px-4 py-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+              onClick={() => handleSuggestionClick(suggestion)}
+            >
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm">{suggestion.address}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

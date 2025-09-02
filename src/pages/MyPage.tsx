@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { toast } from "@/hooks/use-toast";
-import { AddressInput } from "@/components/AddressInput";
+import { SimpleAddressInput } from "@/components/SimpleAddressInput";
 import Header from "@/components/Header";
 
 interface Profile {
@@ -295,11 +295,8 @@ const MyPage = () => {
     }
   };
 
-  const handleAddressChange = (address: string, coordinates?: { lat: number; lng: number }) => {
-    setCurrentAddress(address);
-    if (coordinates) {
-      updateUserLocation(address, coordinates.lat, coordinates.lng);
-    }
+  const handleAddressChange = (latitude: number, longitude: number, address: string) => {
+    updateUserLocation(address, latitude, longitude);
   };
 
   const updateUserLocation = async (address: string, lat: number, lng: number) => {
@@ -670,9 +667,8 @@ const MyPage = () => {
                         </div>
 
                         {/* Address Input */}
-                        <AddressInput
-                          value={currentAddress}
-                          onChange={handleAddressChange}
+                        <SimpleAddressInput
+                          onLocationSelect={handleAddressChange}
                           placeholder="주소를 검색하여 설정"
                         />
                       </div>

@@ -33,12 +33,8 @@ export const SimpleAddressInput = ({ onLocationSelect, placeholder = "주소를 
         throw error;
       }
 
-      if (data.latitude && data.longitude) {
-        setSuggestions([{
-          address: data.address,
-          latitude: data.latitude,
-          longitude: data.longitude
-        }]);
+      if (data.results && data.results.length > 0) {
+        setSuggestions(data.results);
         setShowSuggestions(true);
       } else {
         setSuggestions([]);

@@ -82,6 +82,7 @@ async function handleGeocode(address: string) {
   if (!data.documents || data.documents.length === 0) {
     return new Response(
       JSON.stringify({ 
+        results: [],
         latitude: null, 
         longitude: null, 
         message: 'No coordinates found for this address' 
@@ -93,15 +94,22 @@ async function handleGeocode(address: string) {
     );
   }
 
-  const location = data.documents[0];
-  const latitude = parseFloat(location.y);
-  const longitude = parseFloat(location.x);
+  // 여러 결과를 반환 (최대 5개)
+  const results = data.documents.slice(0, 5).map((location: any) => ({
+    address: location.address_name || location.road_address?.address_name || address,
+    latitude: parseFloat(location.y),
+    longitude: parseFloat(location.x)
+  })).filter((result: any) => !isNaN(result.latitude) && !isNaN(result.longitude));
+
+  // 첫 번째 결과를 기본값으로 유지 (호환성)
+  const firstResult = results[0] || { address, latitude: null, longitude: null };
 
   return new Response(
     JSON.stringify({ 
-      latitude, 
-      longitude,
-      address: location.address_name || address
+      results,
+      latitude: firstResult.latitude, 
+      longitude: firstResult.longitude,
+      address: firstResult.address
     }),
     { 
       status: 200, 

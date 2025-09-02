@@ -54,6 +54,12 @@ const Header = () => {
             <span className="hidden sm:inline">책 등록</span>
           </Button>
           {user && <NotificationDropdown />}
+          {user && (
+            <Button variant="outline" size="sm" onClick={() => navigate("/my")}>
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">마이페이지</span>
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={handleAuthClick}>
             {user ? <LogOut className="h-4 w-4" /> : <User className="h-4 w-4" />}
             <span className="hidden sm:inline">{user ? "로그아웃" : "로그인"}</span>
@@ -82,13 +88,15 @@ const Header = () => {
               >
                 책 찾기
               </a>
-              <a 
-                href="/my" 
-                className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                내 책장
-              </a>
+              {user && (
+                <a 
+                  href="/my" 
+                  className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  마이페이지
+                </a>
+              )}
             </nav>
           </div>
         </div>

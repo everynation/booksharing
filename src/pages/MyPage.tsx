@@ -16,7 +16,8 @@ import {
   TrendingUp,
   Calendar,
   ArrowUpRight,
-  ArrowDownLeft
+  ArrowDownLeft,
+  Navigation
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,9 +26,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useGeolocation } from "@/hooks/useGeolocation";
 import { toast } from "@/hooks/use-toast";
+import { AddressInput } from "@/components/AddressInput";
 import Header from "@/components/Header";
 
 interface Profile {
@@ -82,6 +86,7 @@ interface LentBook {
 const MyPage = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { latitude, longitude, getCurrentPosition, loading: locationLoading, error: locationError } = useGeolocation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
@@ -89,6 +94,8 @@ const MyPage = () => {
   const [lentBooks, setLentBooks] = useState<LentBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState(true);
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
+  const [currentAddress, setCurrentAddress] = useState("");
 
   useEffect(() => {
     if (authLoading) return;
@@ -241,6 +248,91 @@ const MyPage = () => {
         return <ArrowDownLeft className="h-4 w-4 text-blue-500" />;
       default:
         return <CreditCard className="h-4 w-4" />;
+    }
+  };
+
+  // Location handling functions
+  const handleUseCurrentLocation = async () => {
+    if (!user) return;
+    
+    if (locationLoading) {
+      toast({
+        title: "위치 확인 중",
+        description: "현재 위치를 확인하고 있습니다. 잠시만 기다려주세요.",
+      });
+      return;
+    }
+
+    if (!latitude || !longitude) {
+      getCurrentPosition();
+      toast({
+        title: "위치 권한 요청",
+        description: "현재 위치를 가져오기 위해 위치 권한이 필요합니다.",
+      });
+      return;
+    }
+
+    try {
+      // Reverse geocoding to get address from coordinates
+      const { data, error } = await supabase.functions.invoke('geocode-address', {
+        body: { latitude, longitude, reverseGeocode: true }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const address = data.address || `위도: ${latitude.toFixed(6)}, 경도: ${longitude.toFixed(6)}`;
+      
+      await updateUserLocation(address, latitude, longitude);
+    } catch (error) {
+      console.error('Current location error:', error);
+      toast({
+        title: "현재 위치 사용 실패",
+        description: "현재 위치를 가져올 수 없습니다. 주소를 직접 입력해주세요.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddressChange = (address: string, coordinates?: { lat: number; lng: number }) => {
+    setCurrentAddress(address);
+    if (coordinates) {
+      updateUserLocation(address, coordinates.lat, coordinates.lng);
+    }
+  };
+
+  const updateUserLocation = async (address: string, lat: number, lng: number) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          address,
+          latitude: lat,
+          longitude: lng
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setProfile(prev => prev ? { ...prev, address } : { display_name: null, address, phone: null });
+      setIsLocationDialogOpen(false);
+      
+      toast({
+        title: "위치 업데이트 완료",
+        description: `주소가 "${address}"로 업데이트되었습니다.`,
+      });
+    } catch (error) {
+      console.error('Location update error:', error);
+      toast({
+        title: "위치 업데이트 실패",
+        description: "위치를 업데이트할 수 없습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -527,7 +619,65 @@ const MyPage = () => {
                       <p className="text-sm text-muted-foreground">{profile?.address || "설정되지 않음"}</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">변경</Button>
+                  <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">변경</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <MapPin className="h-5 w-5" />
+                          위치 설정
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="text-sm text-muted-foreground">
+                          현재 위치를 사용하거나 주소를 직접 입력하여 위치를 설정할 수 있습니다.
+                        </div>
+                        
+                        {/* Current Location Button */}
+                        <Button 
+                          onClick={handleUseCurrentLocation}
+                          disabled={locationLoading}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          <Navigation className="h-4 w-4 mr-2" />
+                          {locationLoading ? "위치 확인 중..." : "현재 위치 사용"}
+                        </Button>
+
+                        {locationError && (
+                          <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                            {locationError}
+                          </div>
+                        )}
+
+                        {latitude && longitude && (
+                          <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                            📍 현재 위치가 확인되었습니다
+                          </div>
+                        )}
+
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-2 text-muted-foreground">
+                              또는
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Address Input */}
+                        <AddressInput
+                          value={currentAddress}
+                          onChange={handleAddressChange}
+                          placeholder="주소를 검색하여 설정"
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardContent>
             </Card>

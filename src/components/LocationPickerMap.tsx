@@ -24,8 +24,9 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const marker = useRef<any>(null);
-  const { ready, ensureLoaded } = useKakaoMaps();
+  const { ready, ensureLoaded, error } = useKakaoMaps();
   const [isMapReady, setIsMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -81,8 +82,10 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
         });
 
         setIsMapReady(true);
+        setMapError(null);
       } catch (error) {
         console.error('Failed to initialize map:', error);
+        setMapError('지도 초기화에 실패했습니다.');
       }
     };
 
@@ -102,12 +105,29 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
     map.current.setCenter(newPosition);
   }, [lat, lng]);
 
-  if (!ready) {
+  if (!ready || error) {
     return (
       <div className={`flex items-center justify-center bg-muted rounded-lg ${className}`} style={{ height: '400px' }}>
         <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">지도를 불러오는 중...</p>
+          {error ? (
+            <>
+              <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center">
+                <span className="text-destructive">!</span>
+              </div>
+              <p className="text-sm text-destructive text-center">{error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="text-xs text-muted-foreground underline mt-2"
+              >
+                페이지 새로고침
+              </button>
+            </>
+          ) : (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">지도를 불러오는 중...</p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -120,11 +140,22 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
         className="w-full rounded-lg overflow-hidden"
         style={{ height: '400px' }}
       />
-      {!isMapReady && (
+      {(!isMapReady || mapError) && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/80 rounded-lg">
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">지도 초기화 중...</p>
+            {mapError ? (
+              <>
+                <div className="h-6 w-6 rounded-full bg-destructive/20 flex items-center justify-center">
+                  <span className="text-destructive text-sm">!</span>
+                </div>
+                <p className="text-sm text-destructive text-center">{mapError}</p>
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">지도 초기화 중...</p>
+              </>
+            )}
           </div>
         </div>
       )}

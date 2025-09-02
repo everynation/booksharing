@@ -26,10 +26,11 @@ async function getKakaoApiKey(): Promise<string> {
 
 export function useKakaoMaps() {
   const [ready, setReady] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const loadingPromiseRef = useRef<Promise<void> | null>(null);
 
   const ensureLoaded = useCallback((): Promise<void> => {
-    console.log("[useKakaoMaps] ensureLoaded called");
+    console.log("[useKakaoMaps] ensureLoaded called, ready:", ready);
     
     if (ready) {
       console.log("[useKakaoMaps] Already ready, returning immediately");
@@ -42,50 +43,95 @@ export function useKakaoMaps() {
     }
 
     loadingPromiseRef.current = new Promise<void>(async (resolve, reject) => {
-      console.log("[useKakaoMaps] Starting new loading process");
-      
       try {
-        // Get API key securely from edge function
-        const apiKey = await getKakaoApiKey();
-        const KAKAO_SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services&autoload=false`;
-
-        // Remove existing script if any
-        const existingScript = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]');
-        if (existingScript) {
-          existingScript.remove();
+        console.log("[useKakaoMaps] Starting new loading process");
+        
+        // Check if already loaded
+        if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
+          console.log("[useKakaoMaps] Kakao Maps already loaded and ready");
+          setReady(true);
+          setError(null);
+          resolve();
+          return;
         }
 
-        console.log("[useKakaoMaps] Creating new script");
+        // Get API key
+        console.log("[useKakaoMaps] Getting API key");
+        const apiKey = await getKakaoApiKey();
+        console.log("[useKakaoMaps] API key obtained");
+        
+        const KAKAO_SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services&autoload=false`;
+
+        // Remove any existing script
+        const existingScripts = document.querySelectorAll('script[src*="dapi.kakao.com"]');
+        existingScripts.forEach(script => {
+          console.log("[useKakaoMaps] Removing existing script");
+          script.remove();
+        });
+
+        // Clear window.kakao if it exists
+        if (window.kakao) {
+          console.log("[useKakaoMaps] Clearing existing kakao object");
+          delete window.kakao;
+        }
+
+        console.log("[useKakaoMaps] Creating new script element");
         const script = document.createElement('script');
         script.src = KAKAO_SDK_URL;
         script.async = true;
         script.crossOrigin = 'anonymous';
         
+        const timeoutId = setTimeout(() => {
+          console.error("[useKakaoMaps] Script loading timeout");
+          setError('지도 로딩 시간이 초과되었습니다.');
+          reject(new Error('Script loading timeout'));
+        }, 10000);
+        
         script.onload = () => {
           console.log("[useKakaoMaps] Script loaded successfully");
-          // Add a small delay to ensure kakao object is fully initialized
-          setTimeout(() => {
-            if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
-              window.kakao.maps.load(() => {
-                console.log("[useKakaoMaps] Kakao maps.load callback executed");
-                setReady(true);
-                resolve();
-              });
+          clearTimeout(timeoutId);
+          
+          // Wait a bit for kakao object to be available
+          const checkKakao = () => {
+            if (window.kakao && window.kakao.maps) {
+              console.log("[useKakaoMaps] Kakao object available, calling kakao.maps.load");
+              
+              if (typeof window.kakao.maps.load === 'function') {
+                window.kakao.maps.load(() => {
+                  console.log("[useKakaoMaps] Kakao maps loaded successfully");
+                  setReady(true);
+                  setError(null);
+                  loadingPromiseRef.current = null;
+                  resolve();
+                });
+              } else {
+                console.error("[useKakaoMaps] kakao.maps.load is not a function");
+                setError('지도 초기화 함수를 찾을 수 없습니다.');
+                reject(new Error('kakao.maps.load is not a function'));
+              }
             } else {
-              console.error("[useKakaoMaps] Kakao maps.load not available after script load");
-              reject(new Error('Kakao Maps load function not available'));
+              console.log("[useKakaoMaps] Kakao object not ready, retrying...");
+              setTimeout(checkKakao, 100);
             }
-          }, 100);
+          };
+          
+          checkKakao();
         };
         
         script.onerror = (error) => {
           console.error("[useKakaoMaps] Script load failed:", error);
+          clearTimeout(timeoutId);
+          setError('지도 스크립트 로딩에 실패했습니다.');
           reject(new Error('Kakao Maps SDK load failed'));
         };
         
+        console.log("[useKakaoMaps] Appending script to head");
         document.head.appendChild(script);
+        
       } catch (error) {
-        console.error("[useKakaoMaps] Error loading Kakao API:", error);
+        console.error("[useKakaoMaps] Error in loading process:", error);
+        setError('지도를 불러오는 중 오류가 발생했습니다.');
+        loadingPromiseRef.current = null;
         reject(error);
       }
     });
@@ -94,14 +140,14 @@ export function useKakaoMaps() {
   }, [ready]);
 
   useEffect(() => {
-    // 컴포넌트 마운트 시 자동으로 로드 시도
     if (!ready && typeof window !== 'undefined') {
       console.log("[useKakaoMaps] Component mounted, attempting to load");
       ensureLoaded().catch((error) => {
         console.error("[useKakaoMaps] Failed to load on mount:", error);
+        setError('지도 로딩에 실패했습니다. 페이지를 새로고침해 주세요.');
       });
     }
   }, [ready, ensureLoaded]);
 
-  return { ready, ensureLoaded };
+  return { ready, ensureLoaded, error };
 }

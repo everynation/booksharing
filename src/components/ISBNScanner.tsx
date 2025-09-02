@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Camera, X, RotateCcw, Scan } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import { BrowserMultiFormatReader, Result } from '@zxing/browser';
+import { BrowserMultiFormatReader } from '@zxing/browser';
+import type { Result } from '@zxing/library';
 
 interface ISBNScannerProps {
   onScan: (isbn: string) => void;
@@ -22,6 +23,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
   const [scanAttempts, setScanAttempts] = useState(0);
   
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const controlsRef = useRef<any>(null);
 
   // 카메라 초기화
   const initializeCamera = useCallback(async () => {
@@ -76,8 +78,8 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
 
     try {
       // 기존 리더 정리
-      if (readerRef.current) {
-        readerRef.current.reset();
+      if (controlsRef.current) {
+        controlsRef.current.stop();
       }
 
       // 새 ZXing 리더 생성
@@ -87,7 +89,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       console.log('Starting ZXing scanner...');
       
       // 연속 바코드 디코딩 시작
-      reader.decodeFromVideoDevice(
+      const controls = reader.decodeFromVideoDevice(
         undefined, // 기본 비디오 입력 장치 사용
         videoRef.current,
         (result: Result | null, error: any) => {
@@ -117,6 +119,15 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
           }
         }
       );
+      
+      // Handle both Promise and direct return types
+      if (controls && typeof controls.then === 'function') {
+        controls.then((resolvedControls: any) => {
+          controlsRef.current = resolvedControls;
+        });
+      } else {
+        controlsRef.current = controls;
+      }
 
     } catch (err) {
       console.error('ZXing scanner initialization failed:', err);
@@ -173,8 +184,8 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
       }
-      if (readerRef.current) {
-        readerRef.current.reset();
+      if (controlsRef.current && controlsRef.current.stop) {
+        controlsRef.current.stop();
       }
       setIsScanning(false);
       setError(null);
@@ -185,8 +196,8 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (readerRef.current) {
-        readerRef.current.reset();
+      if (controlsRef.current && controlsRef.current.stop) {
+        controlsRef.current.stop();
       }
     };
   }, [isOpen, initializeCamera, stream]);

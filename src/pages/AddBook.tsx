@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import { ArrowLeft, Upload, BookOpen, Scan } from "lucide-react";
 import { ISBNScanner } from "@/components/ISBNScanner";
-import { CurrentLocationButton } from "@/components/CurrentLocationButton";
+import { LocationPickerButton } from "@/components/LocationPickerButton";
 
 interface FormData {
   title: string;
@@ -528,13 +528,14 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
                     <div className="text-sm text-muted-foreground">
                       현재 위치를 사용하거나 프로필의 기본 주소가 자동으로 설정됩니다.
                     </div>
-                    <CurrentLocationButton
+                    <LocationPickerButton
                       onLocationSelect={handleLocationSelect}
                       size="sm"
                       variant="outline"
                       className="w-full"
-                      showErrorAlert={false}
-                    />
+                    >
+                      현재 위치 사용
+                    </LocationPickerButton>
                     {currentLocation && (
                       <div className="text-sm text-green-600 bg-green-50 dark:bg-green-950 p-2 rounded">
                         📍 {currentLocation.address}

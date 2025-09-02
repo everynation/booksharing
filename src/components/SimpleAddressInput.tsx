@@ -3,16 +3,18 @@ import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { CurrentLocationButton } from "@/components/CurrentLocationButton";
+import { LocationPickerButton } from "@/components/LocationPickerButton";
 
 interface SimpleAddressInputProps {
   onLocationSelect: (latitude: number, longitude: number, address: string) => void;
   placeholder?: string;
   className?: string;
-  showCurrentLocationButton?: boolean;
+  showLocationPicker?: boolean;
+  defaultLat?: number;
+  defaultLng?: number;
 }
 
-export const SimpleAddressInput = ({ onLocationSelect, placeholder = "주소를 입력하세요", className, showCurrentLocationButton = true }: SimpleAddressInputProps) => {
+export const SimpleAddressInput = ({ onLocationSelect, placeholder = "주소를 입력하세요", className, showLocationPicker = true, defaultLat, defaultLng }: SimpleAddressInputProps) => {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Array<{address: string, latitude: number, longitude: number}>>([]);
@@ -124,15 +126,21 @@ export const SimpleAddressInput = ({ onLocationSelect, placeholder = "주소를 
         )}
       </div>
 
-      {/* Current Location Button */}
-      {showCurrentLocationButton && (
-        <CurrentLocationButton
-          onLocationSelect={onLocationSelect}
-          onAddressChange={(addr) => setAddress(addr)}
+      {/* Location Picker Button */}
+      {showLocationPicker && (
+        <LocationPickerButton
+          onLocationSelect={(lat, lng, addr) => {
+            onLocationSelect(lat, lng, addr);
+            setAddress(addr);
+          }}
+          defaultLat={defaultLat}
+          defaultLng={defaultLng}
           size="sm"
           variant="outline"
           className="w-full"
-        />
+        >
+          현재 위치 사용
+        </LocationPickerButton>
       )}
 
       {/* Hidden inputs for latitude and longitude */}

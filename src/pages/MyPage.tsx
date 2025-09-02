@@ -727,7 +727,7 @@ const MyPage = () => {
                         <SimpleAddressInput
                           onLocationSelect={handleAddressChange}
                           placeholder="주소를 검색하여 설정"
-                          showCurrentLocationButton={true}
+                          showLocationPicker={true}
                         />
                       </div>
                     </DialogContent>

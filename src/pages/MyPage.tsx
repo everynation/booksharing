@@ -34,6 +34,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { toast } from "@/hooks/use-toast";
 import { SimpleAddressInput } from "@/components/SimpleAddressInput";
+import { CurrentLocationButton } from "@/components/CurrentLocationButton";
 import Header from "@/components/Header";
 
 interface Profile {
@@ -721,44 +722,12 @@ const MyPage = () => {
                           현재 위치를 사용하거나 주소를 직접 입력하여 위치를 설정할 수 있습니다.
                         </div>
                         
-                        {/* Current Location Button */}
-                        <Button 
-                          onClick={handleUseCurrentLocation}
-                          disabled={locationLoading}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          <Navigation className="h-4 w-4 mr-2" />
-                          {locationLoading ? "위치 확인 중..." : "현재 위치 사용"}
-                        </Button>
 
-                        {locationError && (
-                          <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
-                            {locationError}
-                          </div>
-                        )}
-
-                        {latitude && longitude && (
-                          <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
-                            📍 현재 위치가 확인되었습니다
-                          </div>
-                        )}
-
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
-                          </div>
-                          <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                              또는
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Address Input */}
+                        {/* Address Input with Current Location */}
                         <SimpleAddressInput
                           onLocationSelect={handleAddressChange}
                           placeholder="주소를 검색하여 설정"
+                          showCurrentLocationButton={true}
                         />
                       </div>
                     </DialogContent>

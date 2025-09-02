@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import { ArrowLeft, Upload, BookOpen, Scan } from "lucide-react";
 import { ISBNScanner } from "@/components/ISBNScanner";
+import { CurrentLocationButton } from "@/components/CurrentLocationButton";
 
 interface FormData {
   title: string;
@@ -36,8 +37,9 @@ const AddBook = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [showScanner, setShowScanner] = useState(false);
 const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
-const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
+  const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
 const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
+const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -158,7 +160,12 @@ const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
         coverImageUrl = autoCoverUrl;
       }
 
-      // Insert book data with user's address
+      // Use current location if set, otherwise use user's profile address
+      const bookAddress = currentLocation?.address || userAddress;
+      const latitude = currentLocation?.lat;
+      const longitude = currentLocation?.lng;
+
+      // Insert book data with address
       const { error } = await supabase
         .from('books')
         .insert({
@@ -169,7 +176,9 @@ const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
           cover_image_url: coverImageUrl,
           transaction_type: formData.transaction_type,
           price: formData.price,
-          address: userAddress, // 사용자 주소 자동 설정
+          address: bookAddress,
+          latitude,
+          longitude,
           status: 'available',
         });
 
@@ -268,6 +277,10 @@ const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
   const handleISBNScan = (isbn: string) => {
     console.log('ISBN scanned:', isbn);
     fetchBookInfo(isbn);
+  };
+
+  const handleLocationSelect = (latitude: number, longitude: number, address: string) => {
+    setCurrentLocation({ lat: latitude, lng: longitude, address });
   };
 
   return (
@@ -508,12 +521,29 @@ const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
                   )}
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={loading}
-                  variant="warm"
-                >
+                {/* Location Selection */}
+                <div className="space-y-2">
+                  <Label>책 위치 (선택사항)</Label>
+                  <div className="space-y-3">
+                    <div className="text-sm text-muted-foreground">
+                      현재 위치를 사용하거나 프로필의 기본 주소가 자동으로 설정됩니다.
+                    </div>
+                    <CurrentLocationButton
+                      onLocationSelect={handleLocationSelect}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      showErrorAlert={false}
+                    />
+                    {currentLocation && (
+                      <div className="text-sm text-green-600 bg-green-50 dark:bg-green-950 p-2 rounded">
+                        📍 {currentLocation.address}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={loading} className="w-full" size="lg">
                   {loading ? "등록 중..." : "책 등록하기"}
                 </Button>
               </form>

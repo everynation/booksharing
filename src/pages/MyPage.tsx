@@ -17,7 +17,9 @@ import {
   Calendar,
   ArrowUpRight,
   ArrowDownLeft,
-  Navigation
+  Navigation,
+  Camera,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +40,7 @@ interface Profile {
   display_name: string | null;
   address: string | null;
   phone: string | null;
+  avatar_url: string | null;
 }
 
 interface Wallet {
@@ -116,7 +119,7 @@ const MyPage = () => {
       // Fetch profile
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('display_name, address, phone')
+        .select('display_name, address, phone, avatar_url')
         .eq('user_id', user.id)
         .single();
 
@@ -316,7 +319,7 @@ const MyPage = () => {
         throw error;
       }
 
-      setProfile(prev => prev ? { ...prev, address } : { display_name: null, address, phone: null });
+      setProfile(prev => prev ? { ...prev, address } : { display_name: null, address, phone: null, avatar_url: null });
       setIsLocationDialogOpen(false);
       
       toast({
@@ -328,6 +331,79 @@ const MyPage = () => {
       toast({
         title: "위치 업데이트 실패",
         description: "위치를 업데이트할 수 없습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "파일 크기 초과",
+        description: "이미지 크기는 5MB 이하여야 합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "잘못된 파일 형식",
+        description: "이미지 파일만 업로드할 수 있습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+
+      toast({
+        title: "프로필 사진 업데이트 완료",
+        description: "프로필 사진이 성공적으로 변경되었습니다.",
+      });
+
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      toast({
+        title: "프로필 사진 업로드 실패",
+        description: "프로필 사진을 업로드할 수 없습니다. 다시 시도해주세요.",
         variant: "destructive",
       });
     }
@@ -346,12 +422,25 @@ const MyPage = () => {
         <Card className="mb-8">
           <CardHeader>
             <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src="" />
-                <AvatarFallback className="bg-primary text-white text-2xl">
-                  {profile?.display_name?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative group">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={profile?.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary text-white text-2xl">
+                    {profile?.display_name?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center cursor-pointer"
+                     onClick={() => document.getElementById('avatar-upload')?.click()}>
+                  <Camera className="h-6 w-6 text-white" />
+                </div>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+              </div>
               <div className="flex-1">
                 <h1 className="text-2xl font-bold">
                   {profile?.display_name || "사용자"}

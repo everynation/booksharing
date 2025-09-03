@@ -521,11 +521,31 @@ const MyPage = () => {
         </Card>
 
         <Tabs defaultValue="activity" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="activity">내 활동</TabsTrigger>
-            <TabsTrigger value="rewards">보상 현황</TabsTrigger>
-            <TabsTrigger value="wallet">지갑</TabsTrigger>
-            <TabsTrigger value="settings">설정</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-12 p-1 bg-muted rounded-lg">
+            <TabsTrigger 
+              value="activity" 
+              className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              내 활동
+            </TabsTrigger>
+            <TabsTrigger 
+              value="rewards" 
+              className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              보상 현황
+            </TabsTrigger>
+            <TabsTrigger 
+              value="wallet" 
+              className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              지갑
+            </TabsTrigger>
+            <TabsTrigger 
+              value="settings" 
+              className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              설정
+            </TabsTrigger>
           </TabsList>
 
           {/* Activity Tab */}

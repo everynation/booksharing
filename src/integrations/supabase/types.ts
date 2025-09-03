@@ -538,15 +538,6 @@ export type Database = {
         Args: { book_id_param: string; user_id_param: string }
         Returns: boolean
       }
-      get_book_contact_info: {
-        Args: { book_id_param: string }
-        Returns: {
-          book_latitude: number
-          book_longitude: number
-          owner_address: string
-          owner_display_name: string
-        }[]
-      }
       get_book_owner_info: {
         Args: { owner_user_id: string }
         Returns: {

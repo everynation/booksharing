@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
-import { Gift, CheckCircle, Star, Book, Mail } from "lucide-react";
+import { Gift, CheckCircle, Star, Book, Mail, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -24,10 +28,16 @@ const RewardNotification = () => {
   const [eligibleBooks, setEligibleBooks] = useState<EligibleBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingReward, setClaimingReward] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [rewardClaims, setRewardClaims] = useState<any[]>([]);
+  const [loadingClaims, setLoadingClaims] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchEligibleBooks();
+      fetchRewardClaims();
+      fetchUserAddress();
     }
   }, [user]);
 
@@ -98,36 +108,102 @@ const RewardNotification = () => {
     }
   };
 
-  const handleClaimReward = async () => {
+  const fetchUserAddress = async () => {
     if (!user) return;
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('address')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (profile?.address) {
+        setDeliveryAddress(profile.address);
+      }
+    } catch (error) {
+      console.error('Error fetching user address:', error);
+    }
+  };
+
+  const fetchRewardClaims = async () => {
+    if (!user) return;
+    
+    try {
+      setLoadingClaims(true);
+      const { data: claims } = await supabase
+        .from('reward_claims')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      setRewardClaims(claims || []);
+    } catch (error) {
+      console.error('Error fetching reward claims:', error);
+    } finally {
+      setLoadingClaims(false);
+    }
+  };
+
+  const handleClaimReward = async () => {
+    if (!user || eligibleBooks.length === 0) return;
+
+    if (!deliveryAddress.trim()) {
+      toast({
+        title: "배송 주소 필요",
+        description: "배송받을 주소를 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setClaimingReward(true);
 
     try {
-      // Here you would typically:
-      // 1. Send notification to admin
-      // 2. Log the reward claim
-      // 3. Update user's reward status
-      
-      // For now, we'll just show a success message
-      toast({
-        title: "보상 신청 완료",
-        description: "관리자가 확인 후 새 책을 보내드립니다. 등록하신 주소로 배송될 예정입니다.",
+      const { data, error } = await supabase.functions.invoke('claim-reward', {
+        body: {
+          eligible_books: eligibleBooks,
+          delivery_address: deliveryAddress
+        }
       });
 
-      // Note: In a real implementation, you would:
-      // 1. Create a reward_claims table in the database
-      // 2. Send email notification to admin
-      // 3. Log the reward claim for tracking
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Unknown error');
+      }
 
-    } catch (error) {
       toast({
-        title: "오류가 발생했습니다",
-        description: "다시 시도해 주세요.",
+        title: "보상 신청 완료",
+        description: data.message || "관리자가 확인 후 새 책을 보내드립니다.",
+      });
+
+      setShowClaimModal(false);
+      fetchRewardClaims(); // Refresh claims list
+      
+    } catch (error: any) {
+      toast({
+        title: "보상 신청 실패",
+        description: error.message || "다시 시도해 주세요.",
         variant: "destructive",
       });
     } finally {
       setClaimingReward(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline">검토 중</Badge>;
+      case 'approved':
+        return <Badge variant="secondary">승인됨</Badge>;
+      case 'shipped':
+        return <Badge variant="default">배송 중</Badge>;
+      case 'delivered':
+        return <Badge variant="default" className="bg-green-500">배송 완료</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">거절됨</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
     }
   };
 
@@ -303,20 +379,96 @@ const RewardNotification = () => {
                     </ul>
                   </div>
 
-                  <Button 
-                    onClick={handleClaimReward}
-                    className="w-full" 
-                    disabled={claimingReward}
-                    variant="warm"
-                    size="lg"
-                  >
-                    {claimingReward ? "신청 처리 중..." : (
-                      <>
+                  <Dialog open={showClaimModal} onOpenChange={setShowClaimModal}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        className="w-full" 
+                        variant="warm"
+                        size="lg"
+                      >
                         <Gift className="h-4 w-4 mr-2" />
                         새 책 보상 신청하기
-                      </>
-                    )}
-                  </Button>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Gift className="h-5 w-5" />
+                          보상 신청 확인
+                        </DialogTitle>
+                        <DialogDescription>
+                          새 책 보상 신청 정보를 확인하고 주소를 입력해주세요.
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4">
+                        {/* 보상 정보 요약 */}
+                        <Card>
+                          <CardContent className="p-4">
+                            <h4 className="font-medium mb-2">보상 대상 책</h4>
+                            <div className="space-y-1 text-sm">
+                              {eligibleBooks.map(book => (
+                                <div key={book.id} className="flex justify-between">
+                                  <span>{book.title}</span>
+                                  <span className="text-primary font-medium">
+                                    {book.total_earnings.toLocaleString()}원
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="flex justify-between font-medium">
+                              <span>총 수익:</span>
+                              <span className="text-primary">
+                                {eligibleBooks.reduce((sum, book) => sum + book.total_earnings, 0).toLocaleString()}원
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* 배송 정보 */}
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-address">배송 주소 *</Label>
+                          <Textarea
+                            id="delivery-address"
+                            placeholder="배송받을 주소를 입력해주세요"
+                            value={deliveryAddress}
+                            onChange={(e) => setDeliveryAddress(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+
+                        {/* 예상 배송 일정 */}
+                        <div className="p-3 bg-accent rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="h-4 w-4" />
+                            <span className="font-medium">예상 배송 일정</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            신청 완료 후 3-5일 내 배송 예정 (배송비 무료)
+                          </p>
+                        </div>
+
+                        {/* 신청 버튼 */}
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowClaimModal(false)}
+                            className="flex-1"
+                          >
+                            취소
+                          </Button>
+                          <Button 
+                            onClick={handleClaimReward}
+                            disabled={claimingReward || !deliveryAddress.trim()}
+                            className="flex-1"
+                          >
+                            {claimingReward ? "신청 중..." : "보상 신청"}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
                   <div className="text-center">
                     <Button variant="outline" size="sm" className="flex items-center gap-2">
@@ -326,6 +478,59 @@ const RewardNotification = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 보상 신청 내역 */}
+              {rewardClaims.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5" />
+                      보상 신청 내역
+                    </CardTitle>
+                    <CardDescription>
+                      지금까지의 보상 신청 현황을 확인할 수 있습니다.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {loadingClaims ? (
+                      <p className="text-muted-foreground text-center py-4">로딩 중...</p>
+                    ) : (
+                      rewardClaims.map((claim) => (
+                        <Card key={claim.id} className="border-accent">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <p className="font-medium">
+                                  신청일: {new Date(claim.created_at).toLocaleDateString()}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  보상 가치: {claim.total_reward_value.toLocaleString()}원
+                                </p>
+                              </div>
+                              {getStatusBadge(claim.status)}
+                            </div>
+                            
+                            <div className="text-sm space-y-1">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-3 w-3" />
+                                <span>배송지: {claim.delivery_address || '주소 없음'}</span>
+                              </div>
+                              <p>
+                                대상 책: {Array.isArray(claim.eligible_books) ? claim.eligible_books.length : 0}권
+                              </p>
+                              {claim.admin_notes && (
+                                <p className="text-orange-600">
+                                  관리자 메모: {claim.admin_notes}
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </div>

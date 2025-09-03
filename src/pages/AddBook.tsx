@@ -217,40 +217,62 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
   const fetchBookInfo = async (isbn: string) => {
     setIsLoadingBookInfo(true);
     try {
-      const { data, error } = await supabase.functions.invoke('search-book', {
+      // 1차 시도: Kakao Books API
+      console.log('Trying Kakao Books API for ISBN:', isbn);
+      const { data: kakaoData, error: kakaoError } = await supabase.functions.invoke('search-book', {
         body: { isbn }
       });
 
-      if (error) {
-        console.error('Error fetching book info:', error);
-        throw new Error(error.message);
+      let bookFound = false;
+      let bookData = null;
+      let source = '';
+
+      if (!kakaoError && kakaoData?.documents && kakaoData.documents.length > 0) {
+        bookData = kakaoData.documents[0];
+        source = 'Kakao Books';
+        bookFound = true;
+        console.log('Book found in Kakao Books:', bookData);
+      } else {
+        console.log('Book not found in Kakao Books, trying Google Books...');
+        
+        // 2차 시도: Google Books API
+        try {
+          const { data: googleData, error: googleError } = await supabase.functions.invoke('search-google-books', {
+            body: { isbn }
+          });
+
+          if (!googleError && googleData?.documents && googleData.documents.length > 0) {
+            bookData = googleData.documents[0];
+            source = 'Google Books';
+            bookFound = true;
+            console.log('Book found in Google Books:', bookData);
+          }
+        } catch (googleError) {
+          console.error('Google Books API error:', googleError);
+        }
       }
 
-      console.log('Book search result:', data);
-      
-      if (data.documents && data.documents.length > 0) {
-        const book = data.documents[0];
-        
+      if (bookFound && bookData) {
         // 자동으로 폼 데이터 채우기
         setFormData(prev => ({
           ...prev,
-          title: book.title || '',
-          author: book.authors ? book.authors.join(', ') : '',
+          title: bookData.title || '',
+          author: bookData.authors ? bookData.authors.join(', ') : '',
           isbn: isbn
         }));
 
         // 책 표지 이미지가 있으면 설정
-        if (book.thumbnail && book.thumbnail !== '/placeholder.svg') {
-          setImagePreview(book.thumbnail);
-          setAutoCoverUrl(book.thumbnail);
+        if (bookData.thumbnail && bookData.thumbnail !== '/placeholder.svg') {
+          setImagePreview(bookData.thumbnail);
+          setAutoCoverUrl(bookData.thumbnail);
         }
 
         toast({
           title: "책 정보 불러오기 완료",
-          description: `"${book.title}" 정보가 자동으로 입력되었습니다.`,
+          description: `"${bookData.title}" 정보가 ${source}에서 자동으로 입력되었습니다.`,
         });
       } else {
-        // 책을 찾지 못한 경우
+        // 두 API 모두에서 책을 찾지 못한 경우
         setFormData(prev => ({
           ...prev,
           isbn: isbn
@@ -258,15 +280,23 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
         
         toast({
           title: "책 정보를 찾을 수 없습니다",
-          description: "ISBN은 입력되었습니다. 나머지 정보를 수동으로 입력해주세요.",
+          description: "Kakao Books와 Google Books에서 책 정보를 찾을 수 없습니다. 제목, 저자, 가격을 직접 입력해주세요.",
           variant: "destructive",
         });
+
+        // 추가 안내 메시지
+        setTimeout(() => {
+          toast({
+            title: "💡 도움말",
+            description: "근처 도서관이나 서점에서 책 정보를 확인하시거나, 온라인 서점에서 검색해보세요.",
+          });
+        }, 3000);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching book info:', error);
       toast({
         title: "오류가 발생했습니다",
-        description: "책 정보를 불러오는 중 오류가 발생했습니다.",
+        description: "책 정보를 불러오는 중 오류가 발생했습니다. 수동으로 입력해주세요.",
         variant: "destructive",
       });
     } finally {

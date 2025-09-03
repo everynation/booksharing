@@ -314,6 +314,72 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_claims: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          delivery_address: string | null
+          eligible_books: Json
+          id: string
+          status: string
+          total_reward_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          delivery_address?: string | null
+          eligible_books: Json
+          id?: string
+          status?: string
+          total_reward_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          delivery_address?: string | null
+          eligible_books?: Json
+          id?: string
+          status?: string
+          total_reward_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transaction_cancellations: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          requestor_id: string
+          status: string
+          transaction_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requestor_id: string
+          status?: string
+          transaction_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requestor_id?: string
+          status?: string
+          transaction_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           book_id: string

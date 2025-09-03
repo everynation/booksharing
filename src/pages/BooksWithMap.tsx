@@ -94,7 +94,7 @@ const BooksWithMap = () => {
     try {
       setLoading(true);
       
-      // Fetch books with secure data - no sensitive user info exposed
+      // Fetch books with basic info (no sensitive location data)
       let query = supabase
         .from('books')
         .select(`
@@ -117,7 +117,10 @@ const BooksWithMap = () => {
           new_book_price,
           rental_terms,
           for_rental,
-          for_sale
+          for_sale,
+          latitude,
+          longitude,
+          address
         `)
         .eq('status', 'available');
 
@@ -149,17 +152,30 @@ const BooksWithMap = () => {
         return;
       }
 
-      // For secure browsing, only show basic book info without user identification
-      // RLS policies protect sensitive data like user_id and location coordinates
-      const booksWithSecureInfo = booksData.map(book => ({
-        ...book,
-        profiles: {
-          display_name: "익명", // Hide owner identity for security
-          address: "위치 정보 보호됨" // General indicator only, no exact location
+      // Calculate distances and add to books if user location is available
+      const booksWithDistance = booksData.map(book => {
+        let distance: number | undefined;
+        
+        // Only show distance if book has location and user has location
+        if (book.latitude && book.longitude && userLat && userLng) {
+          distance = calculateDistance(userLat, userLng, book.latitude, book.longitude);
         }
-      }));
 
-      setBooks(booksWithSecureInfo as any);
+        // Get general area from address (first part before comma)
+        const generalArea = book.address ? 
+          book.address.split(',')[0].trim() : '위치 정보 없음';
+
+        return {
+          ...book,
+          distance,
+          profiles: {
+            display_name: "익명", // Hide owner identity for security
+            address: generalArea // Only show general area
+          }
+        };
+      });
+
+      setBooks(booksWithDistance as any);
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -243,7 +259,11 @@ const BooksWithMap = () => {
       const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            book.author.toLowerCase().includes(searchQuery.toLowerCase());
       
-      return matchesSearch;
+      // Distance filter (only if user has location and book has distance)
+      const matchesDistance = !userLat || !userLng || book.distance === undefined || 
+                             book.distance <= distanceFilter[0];
+      
+      return matchesSearch && matchesDistance;
     });
 
     // Sort books
@@ -504,10 +524,14 @@ const BooksWithMap = () => {
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-2">
-                          {book.profiles?.address && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              <span className="truncate">{book.profiles.address}</span>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <MapPin className="h-4 w-4" />
+                            <span className="truncate">{book.profiles?.address}</span>
+                          </div>
+                          {book.distance !== undefined && (
+                            <div className="text-sm text-muted-foreground">
+                              <Navigation className="h-3 w-3 inline mr-1" />
+                              {formatDistance(book.distance)}
                             </div>
                           )}
                         </div>

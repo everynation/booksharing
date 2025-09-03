@@ -48,9 +48,21 @@ const Books = () => {
     try {
       setLoading(true);
       
+      // Fetch books with minimal secure data - RLS policies now protect sensitive info
       let query = supabase
         .from('books')
-        .select('*')
+        .select(`
+          id,
+          title,
+          author,
+          isbn,
+          cover_image_url,
+          transaction_type,
+          price,
+          status,
+          created_at,
+          user_id
+        `)
         .eq('status', 'available');
 
       // Apply transaction type filter
@@ -79,32 +91,17 @@ const Books = () => {
         return;
       }
 
-      // Get unique user IDs from books
-      const userIds = [...new Set(booksData.map(book => book.user_id))];
-      
-      // Fetch safe profile data using secure function
-      const profilePromises = userIds.map(async (userId) => {
-        const { data } = await supabase.rpc('get_book_owner_info', { 
-          owner_user_id: userId 
-        });
-        return { user_id: userId, ...data?.[0] };
-      });
-      
-      const profilesData = await Promise.all(profilePromises);
-
-      // Create a map of user_id to profile
-      const profilesMap = (profilesData || []).reduce((acc, profile) => {
-        acc[profile.user_id] = profile;
-        return acc;
-      }, {} as Record<string, any>);
-
-      // Combine books with profiles
-      const booksWithProfiles = booksData.map(book => ({
+      // For public browsing, only get basic profile info for books they can access
+      // RLS policies ensure only authorized access to owner contact details
+      const booksWithBasicInfo = booksData.map(book => ({
         ...book,
-        profiles: profilesMap[book.user_id] || null
+        profiles: {
+          display_name: "익명", // Hide owner identity for security
+          address: null // Hide exact addresses for security
+        }
       }));
 
-      setBooks(booksWithProfiles as any);
+      setBooks(booksWithBasicInfo as any);
     } catch (error) {
       console.error('Error:', error);
       toast({

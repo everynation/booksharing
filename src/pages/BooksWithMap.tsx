@@ -86,9 +86,23 @@ const BooksWithMap = () => {
     try {
       setLoading(true);
       
+      // Fetch books with secure data selection - RLS policies protect sensitive info
       let query = supabase
         .from('books')
-        .select('*, profiles!inner(display_name, address)')
+        .select(`
+          id,
+          title,
+          author,
+          isbn,
+          cover_image_url,
+          transaction_type,
+          price,
+          status,
+          created_at,
+          user_id,
+          latitude,
+          longitude
+        `)
         .eq('status', 'available');
 
       // Apply transaction type filter
@@ -119,30 +133,15 @@ const BooksWithMap = () => {
         return;
       }
 
-      // Get unique user IDs from books
-      const userIds = [...new Set(booksData.map(book => book.user_id))];
-      
-      // Fetch safe profile data using secure function
-      const profilePromises = userIds.map(async (userId) => {
-        const { data } = await supabase.rpc('get_book_owner_info', { 
-          owner_user_id: userId 
-        });
-        return { user_id: userId, ...data?.[0] };
-      });
-      
-      const profilesData = await Promise.all(profilePromises);
-
-      // Create a map of user_id to profile
-      const profilesMap = (profilesData || []).reduce((acc, profile) => {
-        acc[profile.user_id] = profile;
-        return acc;
-      }, {} as Record<string, any>);
-
-      // Combine books with profiles and calculate distances
-      const booksWithProfiles = booksData.map(book => {
+      // For map display, we need general area info but not exact addresses for security
+      // Only show approximate location info for non-owners
+      const booksWithSecureInfo = booksData.map(book => {
         const bookWithProfile = {
           ...book,
-          profiles: profilesMap[book.user_id] || null
+          profiles: {
+            display_name: "익명", // Hide owner identity for security
+            address: book.latitude && book.longitude ? "위치 정보 있음" : null // General indicator only
+          }
         };
 
         // Calculate distance if user location and book location are available
@@ -153,7 +152,7 @@ const BooksWithMap = () => {
         return bookWithProfile;
       });
 
-      setBooks(booksWithProfiles as any);
+      setBooks(booksWithSecureInfo as any);
     } catch (error) {
       console.error('Error:', error);
       toast({

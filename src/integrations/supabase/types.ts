@@ -244,6 +244,13 @@ export type Database = {
             referencedRelation: "books"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rental_contracts_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       rental_handshakes: {
@@ -377,6 +384,13 @@ export type Database = {
             referencedRelation: "books"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       wallet_transactions: {
@@ -443,12 +457,95 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      books_public: {
+        Row: {
+          author: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          daily_rate: number | null
+          description: string | null
+          for_rental: boolean | null
+          for_sale: boolean | null
+          general_area: string | null
+          id: string | null
+          isbn: string | null
+          late_daily: number | null
+          late_fee_per_day: number | null
+          new_book_price: number | null
+          price: number | null
+          rental_daily: number | null
+          rental_terms: string | null
+          rental_weekly: number | null
+          status: string | null
+          title: string | null
+          transaction_type: string | null
+          updated_at: string | null
+          weekly_rate: number | null
+        }
+        Insert: {
+          author?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          daily_rate?: number | null
+          description?: string | null
+          for_rental?: boolean | null
+          for_sale?: boolean | null
+          general_area?: never
+          id?: string | null
+          isbn?: string | null
+          late_daily?: number | null
+          late_fee_per_day?: number | null
+          new_book_price?: number | null
+          price?: number | null
+          rental_daily?: number | null
+          rental_terms?: string | null
+          rental_weekly?: number | null
+          status?: string | null
+          title?: string | null
+          transaction_type?: string | null
+          updated_at?: string | null
+          weekly_rate?: number | null
+        }
+        Update: {
+          author?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          daily_rate?: number | null
+          description?: string | null
+          for_rental?: boolean | null
+          for_sale?: boolean | null
+          general_area?: never
+          id?: string | null
+          isbn?: string | null
+          late_daily?: number | null
+          late_fee_per_day?: number | null
+          new_book_price?: number | null
+          price?: number | null
+          rental_daily?: number | null
+          rental_terms?: string | null
+          rental_weekly?: number | null
+          status?: string | null
+          title?: string | null
+          transaction_type?: string | null
+          updated_at?: string | null
+          weekly_rate?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_user_review_book: {
         Args: { book_id_param: string; user_id_param: string }
         Returns: boolean
+      }
+      get_book_contact_info: {
+        Args: { book_id_param: string }
+        Returns: {
+          book_latitude: number
+          book_longitude: number
+          owner_address: string
+          owner_display_name: string
+        }[]
       }
       get_book_owner_info: {
         Args: { owner_user_id: string }

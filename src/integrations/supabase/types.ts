@@ -485,6 +485,13 @@ export type Database = {
           weekly_rate: number
         }[]
       }
+      get_safe_profile_for_transaction: {
+        Args: { profile_user_id: string; requesting_user_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+        }[]
+      }
       get_user_display_name_secure: {
         Args: { user_id_param: string }
         Returns: string

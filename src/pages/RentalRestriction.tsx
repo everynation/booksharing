@@ -69,11 +69,15 @@ const RentalRestriction = () => {
         .select('id, title, author, cover_image_url, transaction_type')
         .in('id', bookIds);
 
-      // Fetch owner profiles
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', ownerIds);
+      // Fetch owner display names using secure function
+      const profilePromises = ownerIds.map(async (ownerId) => {
+        const { data: displayName } = await supabase.rpc('get_user_display_name_secure', {
+          user_id_param: ownerId
+        });
+        return { user_id: ownerId, display_name: displayName || "익명" };
+      });
+      
+      const profilesData = await Promise.all(profilePromises);
 
       // Create maps for easier lookup
       const booksMap = (booksData || []).reduce((acc, book) => {

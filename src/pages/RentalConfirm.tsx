@@ -122,16 +122,25 @@ const RentalConfirm = () => {
         return;
       }
 
-      // Fetch profiles
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', [transactionData.owner_id, transactionData.borrower_id]);
+      // Fetch display names using secure function for transaction partners
+      const ownerDisplayName = await supabase.rpc('get_user_display_name_secure', {
+        user_id_param: transactionData.owner_id
+      });
+      
+      const borrowerDisplayName = await supabase.rpc('get_user_display_name_secure', {
+        user_id_param: transactionData.borrower_id
+      });
 
-      const profilesMap = (profilesData || []).reduce((acc, profile) => {
-        acc[profile.user_id] = profile;
-        return acc;
-      }, {} as Record<string, any>);
+      const profilesMap = {
+        [transactionData.owner_id]: { 
+          user_id: transactionData.owner_id, 
+          display_name: ownerDisplayName.data || "익명" 
+        },
+        [transactionData.borrower_id]: { 
+          user_id: transactionData.borrower_id, 
+          display_name: borrowerDisplayName.data || "익명" 
+        }
+      };
 
       setTransaction({
         ...transactionData,

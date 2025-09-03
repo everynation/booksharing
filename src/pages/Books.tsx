@@ -27,7 +27,17 @@ interface Book {
   price: number;
   status: string;
   created_at: string;
-  user_id: string;
+  description: string | null;
+  rental_daily: number | null;
+  weekly_rate: number | null;
+  rental_weekly: number | null;
+  daily_rate: number | null;
+  late_daily: number | null;
+  late_fee_per_day: number | null;
+  new_book_price: number | null;
+  rental_terms: string | null;
+  for_rental: boolean | null;
+  for_sale: boolean | null;
   profiles: BookProfile | null;
 }
 
@@ -48,7 +58,7 @@ const Books = () => {
     try {
       setLoading(true);
       
-      // Fetch books with minimal secure data - RLS policies now protect sensitive info
+      // Fetch books with secure data - only safe info without user identification
       let query = supabase
         .from('books')
         .select(`
@@ -61,7 +71,17 @@ const Books = () => {
           price,
           status,
           created_at,
-          user_id
+          description,
+          rental_daily,
+          weekly_rate,
+          rental_weekly,
+          daily_rate,
+          late_daily,
+          late_fee_per_day,
+          new_book_price,
+          rental_terms,
+          for_rental,
+          for_sale
         `)
         .eq('status', 'available');
 
@@ -127,15 +147,8 @@ const Books = () => {
     const book = books.find(b => b.id === bookId);
     if (!book) return;
 
-    // Check if user is trying to borrow their own book
-    if (book.user_id === user.id) {
-      toast({
-        title: "본인 책은 대여할 수 없습니다",
-        description: "자신이 등록한 책은 대여할 수 없습니다.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Note: Cannot check ownership without user_id access due to security policies
+    // Backend will handle validation
 
     // Check if user can borrow (no pending transactions)
     const { canBorrow } = await checkUserCanBorrow(user.id);
@@ -145,41 +158,22 @@ const Books = () => {
     }
 
     try {
-      // 1. 트랜잭션 생성
-      const { data: transactionData, error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
+      // Create transaction using secure edge function
+      const { data, error } = await supabase.functions.invoke('create-secure-transaction', {
+        body: {
           book_id: bookId,
           borrower_id: user.id,
-          owner_id: book.user_id,
-          status: 'requested',
-        })
-        .select('id')
-        .single();
+          status: 'requested'
+        }
+      });
 
-      if (transactionError) {
+      if (error || !data?.success) {
         toast({
           title: "대여 요청 실패",
-          description: transactionError.message,
+          description: data?.error || error?.message || "알 수 없는 오류가 발생했습니다.",
           variant: "destructive",
         });
         return;
-      }
-
-      // 2. 초기 메시지 생성
-      const initialMessage = `📚 "${book.title}" 책을 대여하고 싶습니다.`;
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          transaction_id: transactionData.id,
-          sender_id: user.id,
-          receiver_id: book.user_id,
-          message: initialMessage
-        });
-
-      if (messageError) {
-        console.error('Error creating initial message:', messageError);
-        // 메시지 생성 실패해도 트랜잭션은 유지
       }
 
       toast({
@@ -354,7 +348,7 @@ const Books = () => {
                 </CardContent>
                 
                 <CardFooter className="p-4 pt-0">
-                  {book.user_id === user?.id ? (
+                  {false ? (
                     // 내가 등록한 책인 경우 - 보기/수정 버튼
                     <div className="flex gap-2 w-full">
                       <Button 

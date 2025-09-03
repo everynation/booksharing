@@ -457,6 +457,34 @@ export type Database = {
           display_name: string
         }[]
       }
+      get_safe_book_info: {
+        Args: { book_id_param: string }
+        Returns: {
+          author: string
+          cover_image_url: string
+          created_at: string
+          daily_rate: number
+          description: string
+          for_rental: boolean
+          for_sale: boolean
+          general_area: string
+          has_location: boolean
+          id: string
+          isbn: string
+          late_daily: number
+          late_fee_per_day: number
+          new_book_price: number
+          price: number
+          rental_daily: number
+          rental_terms: string
+          rental_weekly: number
+          status: string
+          title: string
+          transaction_type: string
+          updated_at: string
+          weekly_rate: number
+        }[]
+      }
       get_user_display_name_secure: {
         Args: { user_id_param: string }
         Returns: string

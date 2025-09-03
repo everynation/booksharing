@@ -34,9 +34,17 @@ interface Book {
   price: number;
   status: string;
   created_at: string;
-  user_id: string;
-  latitude: number | null;
-  longitude: number | null;
+  description: string | null;
+  rental_daily: number | null;
+  weekly_rate: number | null;
+  rental_weekly: number | null;
+  daily_rate: number | null;
+  late_daily: number | null;
+  late_fee_per_day: number | null;
+  new_book_price: number | null;
+  rental_terms: string | null;
+  for_rental: boolean | null;
+  for_sale: boolean | null;
   profiles: BookProfile | null;
   distance?: number;
 }
@@ -86,7 +94,7 @@ const BooksWithMap = () => {
     try {
       setLoading(true);
       
-      // Fetch books with secure data selection - RLS policies protect sensitive info
+      // Fetch books with secure data - no sensitive user info exposed
       let query = supabase
         .from('books')
         .select(`
@@ -99,9 +107,17 @@ const BooksWithMap = () => {
           price,
           status,
           created_at,
-          user_id,
-          latitude,
-          longitude
+          description,
+          rental_daily,
+          weekly_rate,
+          rental_weekly,
+          daily_rate,
+          late_daily,
+          late_fee_per_day,
+          new_book_price,
+          rental_terms,
+          for_rental,
+          for_sale
         `)
         .eq('status', 'available');
 
@@ -133,24 +149,15 @@ const BooksWithMap = () => {
         return;
       }
 
-      // For map display, we need general area info but not exact addresses for security
-      // Only show approximate location info for non-owners
-      const booksWithSecureInfo = booksData.map(book => {
-        const bookWithProfile = {
-          ...book,
-          profiles: {
-            display_name: "익명", // Hide owner identity for security
-            address: book.latitude && book.longitude ? "위치 정보 있음" : null // General indicator only
-          }
-        };
-
-        // Calculate distance if user location and book location are available
-        if (userLat && userLng && book.latitude && book.longitude) {
-          (bookWithProfile as any).distance = calculateDistance(userLat, userLng, book.latitude, book.longitude);
+      // For secure browsing, only show basic book info without user identification
+      // RLS policies protect sensitive data like user_id and location coordinates
+      const booksWithSecureInfo = booksData.map(book => ({
+        ...book,
+        profiles: {
+          display_name: "익명", // Hide owner identity for security
+          address: "위치 정보 보호됨" // General indicator only, no exact location
         }
-
-        return bookWithProfile;
-      });
+      }));
 
       setBooks(booksWithSecureInfo as any);
     } catch (error) {
@@ -178,15 +185,8 @@ const BooksWithMap = () => {
     const book = books.find(b => b.id === bookId);
     if (!book) return;
 
-    // Check if user is trying to borrow their own book
-    if (book.user_id === user.id) {
-      toast({
-        title: "본인 책은 대여할 수 없습니다",
-        description: "자신이 등록한 책은 대여할 수 없습니다.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Note: Cannot check ownership without user_id access due to security policies
+    // Backend will handle validation
 
     // Check if user can borrow (no pending transactions)
     const { canBorrow } = await checkUserCanBorrow(user.id);
@@ -196,41 +196,22 @@ const BooksWithMap = () => {
     }
 
     try {
-      // 1. 트랜잭션 생성
-      const { data: transactionData, error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
+      // Create transaction using secure edge function
+      const { data, error } = await supabase.functions.invoke('create-secure-transaction', {
+        body: {
           book_id: bookId,
           borrower_id: user.id,
-          owner_id: book.user_id,
-          status: 'requested',
-        })
-        .select('id')
-        .single();
+          status: 'requested'
+        }
+      });
 
-      if (transactionError) {
+      if (error || !data?.success) {
         toast({
           title: "대여 요청 실패",
-          description: transactionError.message,
+          description: data?.error || error?.message || "알 수 없는 오류가 발생했습니다.",
           variant: "destructive",
         });
         return;
-      }
-
-      // 2. 초기 메시지 생성
-      const initialMessage = `📚 "${book.title}" 책을 대여하고 싶습니다.`;
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          transaction_id: transactionData.id,
-          sender_id: user.id,
-          receiver_id: book.user_id,
-          message: initialMessage
-        });
-
-      if (messageError) {
-        console.error('Error creating initial message:', messageError);
-        // 메시지 생성 실패해도 트랜잭션은 유지
       }
 
       toast({
@@ -262,11 +243,7 @@ const BooksWithMap = () => {
       const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            book.author.toLowerCase().includes(searchQuery.toLowerCase());
       
-      // Distance filter (only if user location is available and book has coordinates)
-      const withinDistance = !userLat || !userLng || !book.latitude || !book.longitude || 
-                             (book.distance !== undefined && book.distance <= distanceFilter[0]);
-      
-      return matchesSearch && withinDistance;
+      return matchesSearch;
     });
 
     // Sort books
@@ -288,20 +265,11 @@ const BooksWithMap = () => {
     return filtered;
   }, [books, searchQuery, distanceFilter, sortBy, userLat, userLng]);
 
-  // Prepare map markers
+  // Map functionality is temporarily disabled for security
+  // Location data is now protected and not available for public access
   const mapMarkers: MapMarker[] = useMemo(() => {
-    return filteredAndSortedBooks
-      .filter(book => book.latitude && book.longitude)
-      .map(book => ({
-        id: book.id,
-        title: book.title,
-        address: book.profiles?.address || "주소 없음",
-        lat: book.latitude!,
-        lng: book.longitude!,
-        price: book.price,
-        transaction_type: book.transaction_type,
-      }));
-  }, [filteredAndSortedBooks]);
+    return []; // No map markers since location data is protected
+  }, []);
 
   const handleMarkerClick = (marker: MapMarker) => {
     setSelectedBookId(marker.id);
@@ -542,18 +510,12 @@ const BooksWithMap = () => {
                               <span className="truncate">{book.profiles.address}</span>
                             </div>
                           )}
-                          {book.distance !== undefined && (
-                            <div className="flex items-center gap-1 text-sm font-medium text-blue-600">
-                              <Navigation className="h-4 w-4" />
-                              <span>{formatDistance(book.distance)}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </CardContent>
                     
                     <CardFooter className="p-4 pt-0">
-                      {book.user_id === user?.id ? (
+                      {false ? (
                         // 내가 등록한 책인 경우 - 보기/수정 버튼
                         <div className="flex gap-2 w-full">
                           <Button 

@@ -19,7 +19,9 @@ import {
   ArrowDownLeft,
   Navigation,
   Camera,
-  Upload
+  Upload,
+  Gift,
+  Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,6 +89,16 @@ interface LentBook {
   } | null;
 }
 
+interface RewardClaim {
+  id: string;
+  status: string;
+  total_reward_value: number;
+  eligible_books: any[];
+  delivery_address: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const MyPage = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -96,6 +108,7 @@ const MyPage = () => {
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [borrowedBooks, setBorrowedBooks] = useState<BorrowedBook[]>([]);
   const [lentBooks, setLentBooks] = useState<LentBook[]>([]);
+  const [rewardClaims, setRewardClaims] = useState<RewardClaim[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState(true);
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
@@ -200,6 +213,20 @@ const MyPage = () => {
         setLentBooks(lentData as any);
       }
 
+      // Fetch reward claims
+      const { data: rewardData } = await supabase
+        .from('reward_claims')
+        .select('id, status, total_reward_value, eligible_books, delivery_address, created_at, updated_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (rewardData) {
+        setRewardClaims(rewardData.map(claim => ({
+          ...claim,
+          eligible_books: Array.isArray(claim.eligible_books) ? claim.eligible_books : []
+        })));
+      }
+
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast({
@@ -253,6 +280,31 @@ const MyPage = () => {
       default:
         return <CreditCard className="h-4 w-4" />;
     }
+  };
+
+  const getRewardStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline">신청 중</Badge>;
+      case 'processing':
+        return <Badge variant="secondary">처리 중</Badge>;
+      case 'shipped':
+        return <Badge className="bg-blue-500">배송 중</Badge>;
+      case 'delivered':
+        return <Badge className="bg-green-500">배송 완료</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">취소됨</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   // Location handling functions
@@ -469,8 +521,9 @@ const MyPage = () => {
         </Card>
 
         <Tabs defaultValue="activity" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="activity">내 활동</TabsTrigger>
+            <TabsTrigger value="rewards">보상 현황</TabsTrigger>
             <TabsTrigger value="wallet">지갑</TabsTrigger>
             <TabsTrigger value="settings">설정</TabsTrigger>
           </TabsList>
@@ -582,6 +635,135 @@ const MyPage = () => {
                 새 책 등록하기
               </Button>
             </div>
+          </TabsContent>
+
+          {/* Rewards Tab */}
+          <TabsContent value="rewards" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="h-5 w-5" />
+                  보상 신청 현황 ({rewardClaims.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {rewardClaims.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">
+                        보상 신청 내역이 없습니다
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={() => navigate("/reward-notification")}
+                      >
+                        보상 확인하기
+                      </Button>
+                    </div>
+                  ) : (
+                    rewardClaims.map((claim) => (
+                      <div key={claim.id} className="p-4 border rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Gift className="h-4 w-4 text-primary" />
+                            <span className="font-medium">보상 신청</span>
+                          </div>
+                          {getRewardStatusBadge(claim.status)}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">신청 금액</p>
+                            <p className="font-medium text-primary">
+                              {formatCurrency(claim.total_reward_value)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">신청일</p>
+                            <p className="font-medium">
+                              {formatDate(claim.created_at)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {claim.delivery_address && (
+                          <div className="text-sm">
+                            <p className="text-muted-foreground">배송 주소</p>
+                            <p className="font-medium">{claim.delivery_address}</p>
+                          </div>
+                        )}
+
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">대상 도서 ({claim.eligible_books.length}권)</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {claim.eligible_books.slice(0, 3).map((book: any, index: number) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {book.title}
+                              </Badge>
+                            ))}
+                            {claim.eligible_books.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{claim.eligible_books.length - 3}권 더
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {claim.status === 'shipped' && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <p className="text-sm font-medium text-blue-800">
+                              📦 상품이 배송 중입니다
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              곧 배송지로 도착할 예정입니다
+                            </p>
+                          </div>
+                        )}
+
+                        {claim.status === 'delivered' && (
+                          <div className="bg-green-50 p-3 rounded-lg">
+                            <p className="text-sm font-medium text-green-800">
+                              ✅ 배송이 완료되었습니다
+                            </p>
+                            <p className="text-xs text-green-600 mt-1">
+                              {formatDate(claim.updated_at)}에 배송 완료
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Reward Info Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  보상 시스템 안내
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm space-y-2">
+                  <p>📚 <strong>보상 조건:</strong> 대여 수익이 책 가격을 초과한 도서</p>
+                  <p>🎁 <strong>보상 내용:</strong> 새 책으로 교환 또는 현금 지급</p>
+                  <p>🚚 <strong>배송:</strong> 신청 후 3-5일 내 처리</p>
+                  <p>📍 <strong>배송지:</strong> 프로필 주소 또는 별도 지정</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-4"
+                  onClick={() => navigate("/reward-notification")}
+                >
+                  <Gift className="h-4 w-4 mr-2" />
+                  보상 확인 및 신청
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Wallet Tab */}

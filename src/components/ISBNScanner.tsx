@@ -129,7 +129,38 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     }, 5000);
   }, [isScanning]);
 
-  // 스캔 중지
+  // 카메라 완전 정리
+  const cleanupCamera = useCallback(() => {
+    // ZXing 스캐너 중지
+    if (controlsRef.current && controlsRef.current.stop) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
+    }
+    
+    // 스캔 타임아웃 정리
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+    
+    // MediaStream 완전 정리
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log('Camera track stopped:', track.kind);
+      });
+      setStream(null);
+    }
+    
+    // 비디오 요소 정리
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    setIsScanning(false);
+  }, [stream]);
+
+  // 스캔 중지 (기존 함수 유지)
   const stopScanning = useCallback(() => {
     if (controlsRef.current && controlsRef.current.stop) {
       controlsRef.current.stop();
@@ -261,24 +292,18 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         initializeCamera();
       }
     } else {
-      // 정리 작업
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
-      stopScanning();
+      // 팝업이 닫힐 때 완전 정리
+      cleanupCamera();
       setError(null);
       setScanAttempts(0);
       setScanStartTime(null);
     }
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      stopScanning();
+      // 컴포넌트 언마운트 시 완전 정리
+      cleanupCamera();
     };
-  }, [isOpen, initializeCamera, stream, isHttpsSecure, hasMediaSupport, checkEnvironment, stopScanning]);
+  }, [isOpen, initializeCamera, isHttpsSecure, hasMediaSupport, checkEnvironment, cleanupCamera]);
 
   // 카메라 방향 변경 시 재초기화
   useEffect(() => {
@@ -294,7 +319,10 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       <Card className="w-full max-w-md mx-4 p-6 bg-background">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">ISBN 스캔</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={() => {
+            cleanupCamera();
+            onClose();
+          }}>
             <X className="h-4 w-4" />
           </Button>
         </div>

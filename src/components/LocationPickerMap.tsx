@@ -89,10 +89,22 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
       }
     };
 
-    if (window.kakao && window.kakao.maps) {
+    if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
       initializeMap();
     } else {
-      ensureLoaded().then(initializeMap).catch(console.error);
+      ensureLoaded()
+        .then(() => {
+          if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
+            initializeMap();
+          } else {
+            console.error('Kakao Maps not properly loaded after ensureLoaded');
+            setMapError('지도 로딩에 실패했습니다.');
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load Kakao Maps:', error);
+          setMapError('지도 API 연결에 실패했습니다.');
+        });
     }
   }, [ready, lat, lng, onLocationChange, ensureLoaded]);
 

@@ -173,8 +173,8 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
     setIsScanning(false);
   }, []);
 
-  // ZXing 스캐너 시작
-  const startZXingScanner = useCallback(() => {
+  // ZXing 스캐너 시작 (연속 스캔 방식)
+  const startZXingScanner = useCallback(async () => {
     if (!videoRef.current || !stream) return;
 
     try {
@@ -185,11 +185,23 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
 
-      console.log('Starting ZXing scanner with enhanced settings...');
-      
-      // 연속 바코드 디코딩 시작
+      console.log('Starting continuous ZXing scanner...');
+
+      // 사용 가능한 카메라 장치 목록 가져오기 (static method)
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      console.log('Available video devices:', devices);
+
+      // 후면 카메라 찾기 (environment 키워드 포함하거나 첫 번째 장치)
+      const backCamera = devices.find(device => 
+        /back|environment|rear/i.test(device.label)
+      );
+      const deviceId = backCamera?.deviceId || devices[0]?.deviceId;
+
+      console.log('Selected camera device:', deviceId, backCamera?.label);
+
+      // 연속 스캔 시작 (3개 파라미터만 사용)
       const controls = reader.decodeFromVideoDevice(
-        undefined, // 기본 비디오 입력 장치 사용
+        deviceId,
         videoRef.current,
         (result: Result | null, error: any) => {
           if (result) {
@@ -201,8 +213,16 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
             if (isbn) {
               console.log('Valid ISBN detected:', isbn);
               
-              // 스캔 성공 처리
+              // 스캔 성공 시 즉시 정지
+              if (controlsRef.current && controlsRef.current.stop) {
+                try {
+                  controlsRef.current.stop();
+                } catch (e) {
+                  console.warn('Error stopping decoder:', e);
+                }
+              }
               stopScanning();
+              
               toast.success('ISBN을 성공적으로 인식했습니다!');
               onScan(isbn);
               onClose();
@@ -213,13 +233,14 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
             }
           }
           
+          // 에러는 NotFoundException이 아닌 경우만 로그
           if (error && error.name !== 'NotFoundException') {
             console.warn('ZXing decode error:', error);
           }
         }
       );
       
-      // Handle both Promise and direct return types
+      // 컨트롤 객체 저장 (Promise와 직접 반환 모두 처리)
       if (controls && typeof controls.then === 'function') {
         controls.then((resolvedControls: any) => {
           controlsRef.current = resolvedControls;

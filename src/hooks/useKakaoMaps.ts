@@ -93,31 +93,33 @@ export function useKakaoMaps() {
           console.log("[useKakaoMaps] Script loaded successfully");
           clearTimeout(timeoutId);
           
-          // Wait a bit for kakao object to be available
-          const checkKakao = () => {
+          // autoload=false이므로 수동으로 초기화
+          const initializeKakao = () => {
             if (window.kakao && window.kakao.maps) {
               console.log("[useKakaoMaps] Kakao object available, calling kakao.maps.load");
               
-              if (typeof window.kakao.maps.load === 'function') {
+              try {
+                // autoload=false일 때는 kakao.maps.load() 콜백에서 지도 초기화
                 window.kakao.maps.load(() => {
-                  console.log("[useKakaoMaps] Kakao maps loaded successfully");
+                  console.log("[useKakaoMaps] Kakao maps initialized successfully");
                   setReady(true);
                   setError(null);
                   loadingPromiseRef.current = null;
                   resolve();
                 });
-              } else {
-                console.error("[useKakaoMaps] kakao.maps.load is not a function");
-                setError('지도 초기화 함수를 찾을 수 없습니다.');
-                reject(new Error('kakao.maps.load is not a function'));
+              } catch (error) {
+                console.error("[useKakaoMaps] Error calling kakao.maps.load:", error);
+                setError('지도 초기화에 실패했습니다.');
+                reject(error);
               }
             } else {
-              console.log("[useKakaoMaps] Kakao object not ready, retrying...");
-              setTimeout(checkKakao, 100);
+              console.log("[useKakaoMaps] Kakao object not ready, retrying in 50ms...");
+              setTimeout(initializeKakao, 50);
             }
           };
           
-          checkKakao();
+          // 스크립트 로드 후 즉시 초기화 시도
+          setTimeout(initializeKakao, 10);
         };
         
         script.onerror = (error) => {

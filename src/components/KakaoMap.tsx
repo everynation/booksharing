@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useKakaoMaps } from '@/hooks/useKakaoMaps';
 
 declare global {
   interface Window {
@@ -34,36 +35,47 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const mapMarkers = useRef<any[]>([]);
+  const { ready, ensureLoaded, error } = useKakaoMaps();
 
   useEffect(() => {
-    if (!window.kakao || !mapContainer.current) return;
+    if (!ready || !mapContainer.current) return;
 
     // 지도 초기화
     const initializeMap = () => {
-      const mapCenter = center || { lat: 37.5665, lng: 126.9780 }; // 서울시청 기본 위치
-      
-      const options = {
-        center: new window.kakao.maps.LatLng(mapCenter.lat, mapCenter.lng),
-        level: 3
-      };
+      try {
+        const mapCenter = center || { lat: 37.5665, lng: 126.9780 }; // 서울시청 기본 위치
+        
+        const options = {
+          center: new window.kakao.maps.LatLng(mapCenter.lat, mapCenter.lng),
+          level: 3
+        };
 
-      map.current = new window.kakao.maps.Map(mapContainer.current, options);
+        map.current = new window.kakao.maps.Map(mapContainer.current, options);
 
-      // 지도 타입 컨트롤 추가
-      const mapTypeControl = new window.kakao.maps.MapTypeControl();
-      map.current.addControl(mapTypeControl, window.kakao.maps.ControlPosition.TOPRIGHT);
+        // 지도 타입 컨트롤 추가
+        const mapTypeControl = new window.kakao.maps.MapTypeControl();
+        map.current.addControl(mapTypeControl, window.kakao.maps.ControlPosition.TOPRIGHT);
 
-      // 줌 컨트롤 추가
-      const zoomControl = new window.kakao.maps.ZoomControl();
-      map.current.addControl(zoomControl, window.kakao.maps.ControlPosition.RIGHT);
+        // 줌 컨트롤 추가
+        const zoomControl = new window.kakao.maps.ZoomControl();
+        map.current.addControl(zoomControl, window.kakao.maps.ControlPosition.RIGHT);
+      } catch (error) {
+        console.error('Error initializing map:', error);
+      }
     };
 
-    if (window.kakao.maps) {
+    if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
       initializeMap();
     } else {
-      window.kakao.maps.load(initializeMap);
+      ensureLoaded()
+        .then(() => {
+          if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
+            initializeMap();
+          }
+        })
+        .catch(console.error);
     }
-  }, [center]);
+  }, [ready, center, ensureLoaded]);
 
   useEffect(() => {
     if (!map.current || !markers.length) return;
@@ -130,6 +142,33 @@ export const KakaoMap: React.FC<KakaoMapProps> = ({
       map.current.setCenter(new window.kakao.maps.LatLng(markers[0].lat, markers[0].lng));
     }
   }, [markers, onMarkerClick]);
+
+  if (error) {
+    return (
+      <div 
+        style={style} 
+        className={`rounded-lg overflow-hidden bg-muted flex items-center justify-center ${className}`}
+      >
+        <div className="text-center text-muted-foreground">
+          <p>지도를 불러올 수 없습니다</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <div 
+        style={style} 
+        className={`rounded-lg overflow-hidden bg-muted flex items-center justify-center ${className}`}
+      >
+        <div className="text-center text-muted-foreground">
+          <p>지도를 로딩하는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

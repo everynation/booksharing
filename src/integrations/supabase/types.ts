@@ -523,6 +523,22 @@ export type Database = {
           display_name: string
         }[]
       }
+      get_books_for_map: {
+        Args: {
+          max_distance_km?: number
+          user_latitude?: number
+          user_longitude?: number
+        }
+        Returns: {
+          general_area: string
+          id: string
+          latitude: number
+          longitude: number
+          price: number
+          title: string
+          transaction_type: string
+        }[]
+      }
       get_safe_book_info: {
         Args: { book_id_param: string }
         Returns: {

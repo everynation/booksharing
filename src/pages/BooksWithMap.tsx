@@ -17,6 +17,7 @@ import { checkUserCanBorrow } from "@/lib/rentalUtils";
 import { calculateDistance, formatDistance } from "@/utils/distance";
 import { SimpleAddressInput } from "@/components/SimpleAddressInput";
 import { KakaoMap } from "@/components/KakaoMap";
+import { useMapSearch } from "@/hooks/useMapSearch";
 import Header from "@/components/Header";
 
 interface BookProfile {
@@ -63,6 +64,7 @@ const BooksWithMap = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { latitude: userLat, longitude: userLng, getCurrentPosition, loading: locationLoading, error: locationError } = useGeolocation();
+  const { mapBooks, searchBooksOnMap } = useMapSearch();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
@@ -285,11 +287,63 @@ const BooksWithMap = () => {
     return filtered;
   }, [books, searchQuery, distanceFilter, sortBy, userLat, userLng]);
 
-  // Map functionality is temporarily disabled for security
-  // Location data is now protected and not available for public access
-  const mapMarkers: MapMarker[] = useMemo(() => {
-    return []; // No map markers since location data is protected
-  }, []);
+  // Fetch map markers for books with location data
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
+
+  // Fetch books for map display
+  useEffect(() => {
+    const fetchMapMarkers = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_books_for_map', {
+          user_latitude: userLat,
+          user_longitude: userLng,
+          max_distance_km: distanceFilter[0]
+        });
+
+        if (error) {
+          console.error('Error fetching map markers:', error);
+          return;
+        }
+
+        const markers: MapMarker[] = (data || []).map((book: any) => ({
+          id: book.id,
+          title: book.title,
+          address: book.general_area,
+          lat: book.latitude,
+          lng: book.longitude,
+          price: book.price,
+          transaction_type: book.transaction_type
+        }));
+
+        // Combine with mapBooks data for more comprehensive markers
+        const combinedMarkers = [...markers, ...mapBooks.map(book => ({
+          id: book.id,
+          title: book.title,
+          address: book.general_area,
+          lat: book.latitude,
+          lng: book.longitude,
+          price: book.price,
+          transaction_type: book.transaction_type
+        }))];
+
+        // Remove duplicates based on id
+        const uniqueMarkers = combinedMarkers.filter((marker, index, self) => 
+          index === self.findIndex(m => m.id === marker.id)
+        );
+
+        setMapMarkers(uniqueMarkers);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchMapMarkers();
+  }, [userLat, userLng, distanceFilter, books]);
+
+  // Update map markers when mapBooks change
+  useEffect(() => {
+    searchBooksOnMap(userLat, userLng, distanceFilter[0]);
+  }, [userLat, userLng, distanceFilter, searchBooksOnMap]);
 
   const handleMarkerClick = (marker: MapMarker) => {
     setSelectedBookId(marker.id);

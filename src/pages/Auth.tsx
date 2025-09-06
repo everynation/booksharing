@@ -31,15 +31,6 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!address.trim()) {
-      toast({
-        title: "주소를 입력해주세요",
-        description: "회원가입을 위해 주소 정보가 필요합니다.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setLoading(true);
 
@@ -73,22 +64,7 @@ const Auth = () => {
         return;
       }
 
-      // 2. 프로필에 주소 정보 추가 (회원가입 성공 시에만)
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            address: address,
-            latitude: addressCoordinates?.lat || null,
-            longitude: addressCoordinates?.lng || null,
-          })
-          .eq('user_id', authData.user.id);
-
-        if (profileError) {
-          console.error('Profile update error:', profileError);
-          // 프로필 업데이트 실패해도 회원가입은 성공으로 처리
-        }
-      }
+      // 프로필 생성은 트리거에서 자동으로 처리됨
 
       toast({
         title: "회원가입 완료",
@@ -376,18 +352,6 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-address">주소</Label>
-                    <AddressInput
-                      value={address}
-                      onChange={(newAddress, coordinates) => {
-                        setAddress(newAddress);
-                        setAddressCoordinates(coordinates || null);
-                      }}
-                      placeholder="주소를 검색하세요"
-                      showMap
                     />
                   </div>
                   <Button 

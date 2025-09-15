@@ -218,9 +218,6 @@ const RentalRestriction = () => {
                             {new Date(transaction.created_at).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-sm text-warning mt-2">
-                          {getStatusMessage(transaction.status)}
-                        </p>
                       </div>
                       
                       <div className="flex flex-col gap-2">

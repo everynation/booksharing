@@ -164,7 +164,7 @@ const MyPage = () => {
         setWalletTransactions(transactionData);
       }
 
-      // Fetch borrowed books
+      // Fetch borrowed books (실제로 승인된 대여만 포함)
       const { data: borrowedData } = await supabase
         .from('transactions')
         .select(`
@@ -181,6 +181,7 @@ const MyPage = () => {
           )
         `)
         .eq('borrower_id', user.id)
+        .in('status', ['approved', 'in_progress', 'pending_return', 'return_requested', 'completed'])
         .order('created_at', { ascending: false });
 
       if (borrowedData) {

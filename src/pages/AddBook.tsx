@@ -447,74 +447,91 @@ const AddBook = () => {
                   )}
                 />
 
-                {/* ISBN with Scanner */}
-                <div className="space-y-2">
-                  <Label htmlFor="isbn">ISBN *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="isbn"
-                      placeholder="ISBN을 입력하거나 스캔하세요"
-                      value={formData.isbn}
-                      onChange={(e) => handleInputChange("isbn", e.target.value)}
-                      onBlur={() => formData.isbn && fetchBookInfo(formData.isbn)}
-                      className="flex-1"
-                      disabled={isLoadingBookInfo}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowScanner(true)}
-                      disabled={isLoadingBookInfo}
-                      className="px-3"
-                    >
-                      <Scan className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {errors.isbn && (
-                    <p className="text-sm text-destructive">{errors.isbn}</p>
-                  )}
-                  {isLoadingBookInfo && (
-                    <p className="text-sm text-muted-foreground">📚 책 정보를 불러오는 중...</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    💡 책 뒷면의 바코드를 스캔하면 정보가 자동으로 입력됩니다
-                  </p>
-                </div>
+                 {/* ISBN with Scanner */}
+                 <FormField
+                   control={form.control}
+                   name="isbn"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>ISBN *</FormLabel>
+                       <div className="flex gap-2">
+                         <FormControl>
+                           <Input
+                             placeholder="ISBN을 입력하거나 스캔하세요"
+                             {...field}
+                             onBlur={() => field.value && fetchBookInfo(field.value)}
+                             disabled={isLoadingBookInfo}
+                             className="flex-1"
+                           />
+                         </FormControl>
+                         <Button
+                           type="button"
+                           variant="outline"
+                           onClick={() => setShowScanner(true)}
+                           disabled={isLoadingBookInfo}
+                           className="px-3"
+                         >
+                           <Scan className="h-4 w-4" />
+                         </Button>
+                       </div>
+                       <FormMessage />
+                       {isLoadingBookInfo && (
+                         <p className="text-sm text-muted-foreground">📚 책 정보를 불러오는 중...</p>
+                       )}
+                       <p className="text-xs text-muted-foreground">
+                         💡 책 뒷면의 바코드를 스캔하면 정보가 자동으로 입력됩니다
+                       </p>
+                     </FormItem>
+                   )}
+                 />
 
-                {/* Transaction Type */}
-                <div className="space-y-2">
-                  <Label>거래 유형 *</Label>
-                  <RadioGroup
-                    value={formData.transaction_type}
-                    onValueChange={(value) => handleInputChange("transaction_type", value as "sale" | "rental")}
-                    className="flex flex-row space-x-6"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="rental" id="rental" />
-                      <Label htmlFor="rental">대여</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="sale" id="sale" />
-                      <Label htmlFor="sale">판매</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+                 {/* Transaction Type */}
+                 <FormField
+                   control={form.control}
+                   name="transaction_type"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>거래 유형 *</FormLabel>
+                       <FormControl>
+                         <RadioGroup
+                           value={field.value}
+                           onValueChange={(value) => field.onChange(value)}
+                           className="flex flex-row space-x-6"
+                         >
+                           <div className="flex items-center space-x-2">
+                             <RadioGroupItem value="rental" id="rental" />
+                             <Label htmlFor="rental">대여</Label>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                             <RadioGroupItem value="sale" id="sale" />
+                             <Label htmlFor="sale">판매</Label>
+                           </div>
+                         </RadioGroup>
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
 
-                {/* Price */}
-                <div className="space-y-2">
-                  <Label htmlFor="price">가격 (원) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="0"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange("price", Number(e.target.value))}
-                    className={errors.price ? "border-destructive" : ""}
-                  />
-                  {errors.price && (
-                    <p className="text-sm text-destructive">{errors.price}</p>
-                  )}
-                </div>
+                 {/* Price */}
+                 <FormField
+                   control={form.control}
+                   name="price"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>가격 (원) *</FormLabel>
+                       <FormControl>
+                         <Input
+                           type="number"
+                           placeholder="0"
+                           {...field}
+                           onChange={(e) => field.onChange(Number(e.target.value))}
+                         />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
 
                 {/* Location Selection */}
                 <div className="space-y-2">
@@ -539,12 +556,13 @@ const AddBook = () => {
                   </div>
                 </div>
 
-                <Button type="submit" disabled={loading} className="w-full" size="lg">
-                  {loading ? "등록 중..." : "책 등록하기"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                 <Button type="submit" disabled={loading} className="w-full" size="lg">
+                   {loading ? "등록 중..." : "책 등록하기"}
+                 </Button>
+               </form>
+             </Form>
+             </CardContent>
+           </Card>
         </div>
       </div>
 

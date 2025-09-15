@@ -42,12 +42,17 @@ const RentalRestriction = () => {
     try {
       setLoading(true);
 
+      // 최근 30일 이내의 거래만 확인 (오래된 거래 제외)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
       // First, get transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
         .eq('borrower_id', user.id)
         .in('status', ['requested', 'in_progress'])
+        .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (transactionsError) {

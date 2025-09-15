@@ -578,6 +578,10 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: string
       }
+      increment_wallet_balance: {
+        Args: { amount_param: number; user_id_param: string }
+        Returns: undefined
+      }
       update_book_coordinates: {
         Args: Record<PropertyKey, never>
         Returns: undefined

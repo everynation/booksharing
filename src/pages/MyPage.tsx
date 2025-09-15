@@ -463,6 +463,48 @@ const MyPage = () => {
     }
   };
 
+  const handleCalculateRewards = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('calculate-book-rewards', {
+        body: { user_id: user.id }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.total_reward > 0) {
+        toast({
+          title: "보상 포인트 지급 완료!",
+          description: `${data.total_reward.toLocaleString()}포인트가 지급되었습니다. (${data.eligible_books.length}권의 도서)`,
+        });
+        
+        // Refresh user data to show updated wallet balance
+        fetchUserData();
+      } else {
+        toast({
+          title: "보상 대상 도서 없음",
+          description: data.message || "현재 보상 대상인 도서가 없습니다.",
+          variant: "default",
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Reward calculation error:', error);
+      toast({
+        title: "보상 계산 실패",
+        description: error.message || "보상을 계산하는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!user) {
     return null;
   }
@@ -629,7 +671,7 @@ const MyPage = () => {
                               {getStatusBadge(transaction.status)}
                               {transaction.total_amount && (
                                 <span className="text-xs font-medium text-green-600">
-                                  +{formatCurrency(transaction.total_amount)}
+                                  +{transaction.total_amount.toLocaleString()}P
                                 </span>
                               )}
                             </div>
@@ -664,6 +706,30 @@ const MyPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Gift className="h-5 w-5" />
+                  포인트 보상 시스템
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  대여 수익이 책 가격을 초과한 도서에 대해 해당 책 가격만큼 포인트를 지급받으세요
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4 mb-6">
+                  <Button 
+                    onClick={handleCalculateRewards}
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    <Gift className="h-4 w-4 mr-2" />
+                    {loading ? "계산 중..." : "보상 포인트 계산하기"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
                   보상 신청 현황 ({rewardClaims.length})
                 </CardTitle>
               </CardHeader>
@@ -675,13 +741,6 @@ const MyPage = () => {
                       <p className="text-muted-foreground">
                         보상 신청 내역이 없습니다
                       </p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4"
-                        onClick={() => navigate("/reward-notification")}
-                      >
-                        보상 확인하기
-                      </Button>
                     </div>
                   ) : (
                     rewardClaims.map((claim) => (
@@ -694,11 +753,11 @@ const MyPage = () => {
                           {getRewardStatusBadge(claim.status)}
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <p className="text-muted-foreground">신청 금액</p>
+                            <p className="text-muted-foreground">지급된 포인트</p>
                             <p className="font-medium text-primary">
-                              {formatCurrency(claim.total_reward_value)}
+                              {claim.total_reward_value.toLocaleString()}P
                             </p>
                           </div>
                           <div>
@@ -801,7 +860,7 @@ const MyPage = () => {
                 <div className="text-center mb-6">
                   <p className="text-sm text-muted-foreground mb-2">현재 잔액</p>
                   <p className="text-3xl font-bold text-primary">
-                    {formatCurrency(wallet?.balance || 0)}
+                    {(wallet?.balance || 0).toLocaleString()}P
                   </p>
                 </div>
                 <Button className="w-full" size="lg">
@@ -844,7 +903,7 @@ const MyPage = () => {
                             : 'text-red-600'
                         }`}>
                           {transaction.transaction_type === 'payment' ? '-' : '+'}
-                          {formatCurrency(Math.abs(transaction.amount))}
+                          {Math.abs(transaction.amount).toLocaleString()}P
                         </div>
                       </div>
                     ))

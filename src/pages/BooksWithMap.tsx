@@ -11,13 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Slider as UISlider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useGeolocation } from "@/hooks/useGeolocation";
-import { toast } from "@/hooks/use-toast";
+import { useLocation } from "@/contexts/LocationContext";
+import { useBooks } from "@/hooks/useBooks";
+import { useErrorToast } from "@/hooks/useErrorToast";
 import { checkUserCanBorrow } from "@/lib/rentalUtils";
-import { calculateDistance, formatDistance } from "@/utils/distance";
+import { formatDistance } from "@/utils/distance";
 import { SimpleAddressInput } from "@/components/SimpleAddressInput";
 import { KakaoMap } from "@/components/KakaoMap";
 import { useMapSearch } from "@/hooks/useMapSearch";
+import { BookListSkeleton } from "@/components/BookListSkeleton";
 import Header from "@/components/Header";
 
 interface BookProfile {
@@ -63,18 +65,25 @@ interface MapMarker {
 const BooksWithMap = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { latitude: userLat, longitude: userLng, getCurrentPosition, loading: locationLoading, error: locationError } = useGeolocation();
+  const { latitude: userLat, longitude: userLng, getCurrentPosition, loading: locationLoading, error: locationError } = useLocation();
+  const { showError, showSuccess } = useErrorToast();
   const { mapBooks, searchBooksOnMap } = useMapSearch();
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [books, setBooks] = useState<Book[]>([]);
-  const [loading, setLoading] = useState(true);
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<"all" | "sale" | "rental">("all");
   const [sortBy, setSortBy] = useState<"created_at" | "price" | "title" | "distance">("created_at");
   const [activeTab, setActiveTab] = useState<"list" | "map">("list");
   const [distanceFilter, setDistanceFilter] = useState([20]); // km
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<{lat: number; lng: number} | null>(null);
+
+  // Use React Query for books data
+  const { data: books = [], isLoading: loading, error: booksError } = useBooks({
+    transactionType: transactionTypeFilter,
+    sortBy,
+    userLat,
+    userLng
+  });
 
   // Request user location on component mount
   useEffect(() => {
@@ -88,114 +97,21 @@ const BooksWithMap = () => {
     }
   }, [userLat, userLng]);
 
+  // Show error from React Query if any
   useEffect(() => {
-    fetchBooks();
-  }, [transactionTypeFilter, sortBy]);
-
-  const fetchBooks = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch books with basic info (no sensitive location data)
-      let query = supabase
-        .from('books')
-        .select(`
-          id,
-          title,
-          author,
-          isbn,
-          cover_image_url,
-          transaction_type,
-          price,
-          status,
-          created_at,
-          description,
-          rental_daily,
-          weekly_rate,
-          rental_weekly,
-          daily_rate,
-          late_daily,
-          late_fee_per_day,
-          new_book_price,
-          rental_terms,
-          for_rental,
-          for_sale,
-          latitude,
-          longitude,
-          address
-        `)
-        .eq('status', 'available');
-
-      // Apply transaction type filter
-      if (transactionTypeFilter !== "all") {
-        query = query.eq('transaction_type', transactionTypeFilter);
-      }
-
-      // Apply sorting (distance sorting will be done after fetch)
-      if (sortBy !== "distance") {
-        const ascending = sortBy === "title";
-        query = query.order(sortBy, { ascending });
-      }
-
-      const { data: booksData, error } = await query;
-
-      if (error) {
-        console.error('Error fetching books:', error);
-        toast({
-          title: "책 목록 로딩 실패",
-          description: "책 목록을 불러올 수 없습니다.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!booksData || booksData.length === 0) {
-        setBooks([]);
-        return;
-      }
-
-      // Calculate distances and add to books if user location is available
-      const booksWithDistance = booksData.map(book => {
-        let distance: number | undefined;
-        
-        // Only show distance if book has location and user has location
-        if (book.latitude && book.longitude && userLat && userLng) {
-          distance = calculateDistance(userLat, userLng, book.latitude, book.longitude);
-        }
-
-        // Get general area from address (first part before comma)
-        const generalArea = book.address ? 
-          book.address.split(',')[0].trim() : '위치 정보 없음';
-
-        return {
-          ...book,
-          distance,
-          profiles: {
-            display_name: "익명", // Hide owner identity for security
-            address: generalArea // Only show general area
-          }
-        };
+    if (booksError) {
+      showError(booksError, {
+        title: "책 목록 로딩 실패",
+        description: "책 목록을 불러올 수 없습니다."
       });
-
-      setBooks(booksWithDistance as any);
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "오류가 발생했습니다",
-        description: "다시 시도해 주세요.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [booksError, showError]);
 
   const handleBorrowRequest = async (bookId: string) => {
     if (!user) {
-      toast({
+      showError(new Error("로그인이 필요합니다"), {
         title: "로그인이 필요합니다",
-        description: "대여 요청을 하려면 먼저 로그인해주세요.",
-        variant: "destructive",
+        description: "대여 요청을 하려면 먼저 로그인해주세요."
       });
       return;
     }
@@ -224,18 +140,16 @@ const BooksWithMap = () => {
       });
 
       if (error || !data?.success) {
-        toast({
-          title: "대여 요청 실패",
-          description: data?.error || error?.message || "알 수 없는 오류가 발생했습니다.",
-          variant: "destructive",
+        showError(new Error(data?.error || error?.message || "알 수 없는 오류가 발생했습니다."), {
+          title: "대여 요청 실패"
         });
         return;
       }
 
-      toast({
-        title: "대여 요청 완료",
-        description: "직접 만나서 거래하세요. 책 주인에게 연락하여 만날 장소와 시간을 정하세요.",
-      });
+      showSuccess(
+        "대여 요청 완료",
+        "직접 만나서 거래하세요. 책 주인에게 연락하여 만날 장소와 시간을 정하세요."
+      );
       
       // Update book status to rented
       await supabase
@@ -243,14 +157,9 @@ const BooksWithMap = () => {
         .update({ status: 'rented' })
         .eq('id', bookId);
       
-      // Refresh books list
-      fetchBooks();
+      // Books list will be automatically refreshed by React Query
     } catch (error) {
-      toast({
-        title: "오류가 발생했습니다",
-        description: "다시 시도해 주세요.",
-        variant: "destructive",
-      });
+      showError(error, { title: "오류가 발생했습니다" });
     }
   };
 
@@ -360,10 +269,7 @@ const BooksWithMap = () => {
   const handleAddressSearch = (latitude: number, longitude: number, address: string) => {
     setMapCenter({ lat: latitude, lng: longitude });
     setActiveTab("map");
-    toast({
-      title: "지도 위치 이동",
-      description: `${address} 주변 지도로 이동했습니다.`,
-    });
+    showSuccess("지도 위치 이동", `${address} 주변 지도로 이동했습니다.`);
   };
 
   const getDefaultCoverImage = () => {
@@ -495,11 +401,7 @@ const BooksWithMap = () => {
           {/* 목록 보기 */}
           <TabsContent value="list" className="mt-6">
             {/* 로딩 상태 */}
-            {loading && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">책 목록을 불러오는 중...</p>
-              </div>
-            )}
+            {loading && <BookListSkeleton />}
 
             {/* 책 목록 */}
             {!loading && (

@@ -1,45 +1,54 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "@/hooks/use-toast";
+import { useErrorToast } from "@/hooks/useErrorToast";
+import { bookSchema, type BookFormData } from "@/schemas/bookSchema";
 import Header from "@/components/Header";
 import { ArrowLeft, Upload, BookOpen, Scan } from "lucide-react";
 import { ISBNScanner } from "@/components/ISBNScanner";
 import { LocationPickerButton } from "@/components/LocationPickerButton";
 
-interface FormData {
-  title: string;
-  author: string;
-  isbn: string;
-  transaction_type: "sale" | "rental";
-  price: number;
-}
+// Remove the old FormData interface as it's now defined in the schema
 
 const AddBook = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { showError, showSuccess } = useErrorToast();
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
-    title: "",
-    author: "",
-    isbn: "",
-    transaction_type: "rental",
-    price: 0,
-  });
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [showScanner, setShowScanner] = useState(false);
-const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
+  const [isLoadingBookInfo, setIsLoadingBookInfo] = useState(false);
   const [autoCoverUrl, setAutoCoverUrl] = useState<string | null>(null);
-const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
-const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
+  const [coverSource, setCoverSource] = useState<'library' | 'upload'>('library');
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
+
+  // Initialize form with react-hook-form and zod validation
+  const form = useForm<BookFormData>({
+    resolver: zodResolver(bookSchema),
+    defaultValues: {
+      title: "",
+      author: "",
+      isbn: "",
+      transaction_type: "rental",
+      price: 0,
+      description: "",
+      rental_daily: 0,
+      weekly_rate: 0,
+      late_fee_per_day: 0,
+      new_book_price: 0,
+      rental_terms: "",
+    },
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,44 +88,15 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
     }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof FormData, string>> = {};
+  // Remove the old validateForm function - now handled by zod
 
-    if (!formData.isbn.trim()) {
-      newErrors.isbn = "ISBN을 입력하거나 스캔해주세요";
-    }
-
-    // ISBN으로 자동 입력된 경우 제목, 저자 검증 생략
-    if (!formData.title.trim()) {
-      newErrors.title = "제목을 입력해주세요 (ISBN 스캔으로 자동 입력 가능)";
-    }
-
-    if (!formData.author.trim()) {
-      newErrors.author = "저자를 입력해주세요 (ISBN 스캔으로 자동 입력 가능)";
-    }
-
-    if (formData.price < 0) {
-      newErrors.price = "가격은 0원 이상이어야 합니다";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (data: BookFormData) => {
     if (!user) {
-      toast({
+      showError(new Error("로그인이 필요합니다"), {
         title: "로그인이 필요합니다",
-        description: "책을 등록하려면 먼저 로그인해주세요.",
-        variant: "destructive",
+        description: "책을 등록하려면 먼저 로그인해주세요."
       });
       navigate("/auth");
-      return;
-    }
-
-    if (!validateForm()) {
       return;
     }
 
@@ -132,10 +112,9 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
 
       const userAddress = profileData?.address;
       if (!userAddress) {
-        toast({
+        showError(new Error("주소 정보가 없습니다"), {
           title: "주소 정보가 없습니다",
-          description: "프로필에서 주소를 먼저 설정해주세요.",
-          variant: "destructive",
+          description: "프로필에서 주소를 먼저 설정해주세요."
         });
         setLoading(false);
         return;
@@ -147,10 +126,9 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
         if (imageFile) {
           coverImageUrl = await uploadImage(imageFile);
           if (!coverImageUrl) {
-            toast({
+            showError(new Error("이미지 업로드 실패"), {
               title: "이미지 업로드 실패",
-              description: "이미지 업로드 중 오류가 발생했습니다.",
-              variant: "destructive",
+              description: "이미지 업로드 중 오류가 발생했습니다."
             });
             setLoading(false);
             return;
@@ -170,12 +148,18 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
         .from('books')
         .insert({
           user_id: user.id,
-          title: formData.title,
-          author: formData.author,
-          isbn: formData.isbn || null,
+          title: data.title,
+          author: data.author,
+          isbn: data.isbn || null,
           cover_image_url: coverImageUrl,
-          transaction_type: formData.transaction_type,
-          price: formData.price,
+          transaction_type: data.transaction_type,
+          price: data.price,
+          description: data.description || null,
+          rental_daily: data.rental_daily || null,
+          weekly_rate: data.weekly_rate || null,
+          late_fee_per_day: data.late_fee_per_day || null,
+          new_book_price: data.new_book_price || null,
+          rental_terms: data.rental_terms || null,
           address: bookAddress,
           latitude,
           longitude,
@@ -183,36 +167,19 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
         });
 
       if (error) {
-        toast({
-          title: "책 등록 실패",
-          description: error.message,
-          variant: "destructive",
-        });
+        showError(error, { title: "책 등록 실패" });
       } else {
-        toast({
-          title: "책 등록 완료",
-          description: "책이 성공적으로 등록되었습니다.",
-        });
+        showSuccess("책 등록 완료", "책이 성공적으로 등록되었습니다.");
         navigate("/my");
       }
     } catch (error) {
-      toast({
-        title: "오류가 발생했습니다",
-        description: "다시 시도해 주세요.",
-        variant: "destructive",
-      });
+      showError(error, { title: "오류가 발생했습니다" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-  };
+  // Remove handleInputChange - now handled by react-hook-form
 
   const fetchBookInfo = async (isbn: string) => {
     setIsLoadingBookInfo(true);
@@ -254,12 +221,9 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
 
       if (bookFound && bookData) {
         // 자동으로 폼 데이터 채우기
-        setFormData(prev => ({
-          ...prev,
-          title: bookData.title || '',
-          author: bookData.authors ? bookData.authors.join(', ') : '',
-          isbn: isbn
-        }));
+        form.setValue('title', bookData.title || '');
+        form.setValue('author', bookData.authors ? bookData.authors.join(', ') : '');
+        form.setValue('isbn', isbn);
 
         // 책 표지 이미지가 있으면 설정
         if (bookData.thumbnail && bookData.thumbnail !== '/placeholder.svg') {
@@ -267,37 +231,29 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
           setAutoCoverUrl(bookData.thumbnail);
         }
 
-        toast({
-          title: "책 정보 불러오기 완료",
-          description: `"${bookData.title}" 정보가 ${source}에서 자동으로 입력되었습니다.`,
-        });
+        showSuccess(
+          "책 정보 불러오기 완료",
+          `"${bookData.title}" 정보가 ${source}에서 자동으로 입력되었습니다.`
+        );
       } else {
         // 두 API 모두에서 책을 찾지 못한 경우
-        setFormData(prev => ({
-          ...prev,
-          isbn: isbn
-        }));
+        form.setValue('isbn', isbn);
         
-        toast({
+        showError(new Error("책 정보를 찾을 수 없습니다"), {
           title: "책 정보를 찾을 수 없습니다",
-          description: "Kakao Books와 Google Books에서 책 정보를 찾을 수 없습니다. 제목, 저자, 가격을 직접 입력해주세요.",
-          variant: "destructive",
+          description: "Kakao Books와 Google Books에서 책 정보를 찾을 수 없습니다. 제목, 저자, 가격을 직접 입력해주세요."
         });
 
         // 추가 안내 메시지
         setTimeout(() => {
-          toast({
-            title: "💡 도움말",
-            description: "근처 도서관이나 서점에서 책 정보를 확인하시거나, 온라인 서점에서 검색해보세요.",
-          });
+          showSuccess("💡 도움말", "근처 도서관이나 서점에서 책 정보를 확인하시거나, 온라인 서점에서 검색해보세요.");
         }, 3000);
       }
     } catch (error) {
       console.error('Error fetching book info:', error);
-      toast({
+      showError(error, {
         title: "오류가 발생했습니다",
-        description: "책 정보를 불러오는 중 오류가 발생했습니다. 수동으로 입력해주세요.",
-        variant: "destructive",
+        description: "책 정보를 불러오는 중 오류가 발생했습니다. 수동으로 입력해주세요."
       });
     } finally {
       setIsLoadingBookInfo(false);
@@ -343,7 +299,8 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 {/* Book Cover Upload */}
                 <div className="space-y-2">
                   <Label>책 표지 선택</Label>
@@ -399,15 +356,17 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                          formData.isbn
-                            ? fetchBookInfo(formData.isbn)
-                            : toast({
-                                title: 'ISBN 필요',
-                                description: 'ISBN을 입력한 후 표지를 불러오세요.',
-                                variant: 'destructive',
-                              })
-                        }
+                        onClick={() => {
+                          const isbn = form.getValues('isbn');
+                          if (isbn) {
+                            fetchBookInfo(isbn);
+                          } else {
+                            showError(new Error('ISBN 필요'), {
+                              title: 'ISBN 필요',
+                              description: 'ISBN을 입력한 후 표지를 불러오세요.'
+                            });
+                          }
+                        }}
                         disabled={isLoadingBookInfo}
                       >
                         {isLoadingBookInfo ? '불러오는 중...' : 'ISBN으로 표지 불러오기'}
@@ -453,34 +412,40 @@ const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number
                 </div>
 
                 {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">제목 *</Label>
-                  <Input
-                    id="title"
-                    placeholder="책 제목을 입력하세요"
-                    value={formData.title}
-                    onChange={(e) => handleInputChange("title", e.target.value)}
-                    className={errors.title ? "border-destructive" : ""}
-                  />
-                  {errors.title && (
-                    <p className="text-sm text-destructive">{errors.title}</p>
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>제목 *</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="책 제목을 입력하세요"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
+                />
 
                 {/* Author */}
-                <div className="space-y-2">
-                  <Label htmlFor="author">저자 *</Label>
-                  <Input
-                    id="author"
-                    placeholder="저자명을 입력하세요"
-                    value={formData.author}
-                    onChange={(e) => handleInputChange("author", e.target.value)}
-                    className={errors.author ? "border-destructive" : ""}
-                  />
-                  {errors.author && (
-                    <p className="text-sm text-destructive">{errors.author}</p>
+                <FormField
+                  control={form.control}
+                  name="author"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>저자 *</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="저자명을 입력하세요"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
+                />
 
                 {/* ISBN with Scanner */}
                 <div className="space-y-2">

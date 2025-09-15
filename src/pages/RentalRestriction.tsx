@@ -42,17 +42,14 @@ const RentalRestriction = () => {
     try {
       setLoading(true);
 
-      // 최근 30일 이내의 거래만 확인 (오래된 거래 제외)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      // First, get transactions
+      // 반납 기한이 지난 진행중인 거래만 확인
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
         .eq('borrower_id', user.id)
-        .in('status', ['requested', 'in_progress'])
-        .gte('created_at', thirtyDaysAgo.toISOString())
+        .eq('status', 'in_progress')
+        .not('return_deadline', 'is', null)
+        .lt('return_deadline', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (transactionsError) {
@@ -171,7 +168,7 @@ const RentalRestriction = () => {
                 대여 제한 안내
               </CardTitle>
               <CardDescription className="text-base">
-                이전 거래의 반납 인증이 완료되지 않아 새로운 책을 대여할 수 없습니다.
+                반납 기한이 지난 책이 있어 새로운 책을 대여할 수 없습니다.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -193,7 +190,7 @@ const RentalRestriction = () => {
           ) : (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-foreground mb-4">
-                완료되지 않은 거래 ({pendingTransactions.length}건)
+                반납 기한이 지난 책 ({pendingTransactions.length}건)
               </h2>
               
               {pendingTransactions.map((transaction) => (
@@ -251,8 +248,8 @@ const RentalRestriction = () => {
               <CardContent className="p-4">
                 <h3 className="font-medium mb-2">해결 방법</h3>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• 대여 요청이 진행중인 경우: 책 주인의 승인을 기다려주세요</li>
-                  <li>• 거래가 진행중인 경우: 책을 반납하고 주인의 반납 인증을 기다려주세요</li>
+                  <li>• 반납 기한이 지난 책을 책 소유자에게 반납해주세요</li>
+                  <li>• 반납 완료 후 소유자의 반납 인증을 받아주세요</li>
                   <li>• 문제가 지속되는 경우: 책 주인과 직접 연락하여 해결해주세요</li>
                 </ul>
               </CardContent>

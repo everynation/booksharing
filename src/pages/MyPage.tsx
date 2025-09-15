@@ -240,6 +240,49 @@ const MyPage = () => {
     }
   };
 
+  const handleCalculateRewards = async () => {
+    console.log('handleCalculateRewards function called');
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('calculate-book-rewards', {
+        body: { user_id: user.id }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.total_reward > 0) {
+        toast({
+          title: "보상 포인트 지급 완료!",
+          description: `${data.total_reward.toLocaleString()}포인트가 지급되었습니다. (${data.eligible_books.length}권의 도서)`,
+        });
+        
+        // Refresh user data to show updated wallet balance
+        fetchUserData();
+      } else {
+        toast({
+          title: "보상 대상 도서 없음",
+          description: data.message || "현재 보상 대상인 도서가 없습니다.",
+          variant: "default",
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Reward calculation error:', error);
+      toast({
+        title: "보상 계산 실패",
+        description: error.message || "보상을 계산하는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/");
@@ -460,48 +503,6 @@ const MyPage = () => {
         description: "프로필 사진을 업로드할 수 없습니다. 다시 시도해주세요.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleCalculateRewards = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      
-      const { data, error } = await supabase.functions.invoke('calculate-book-rewards', {
-        body: { user_id: user.id }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.total_reward > 0) {
-        toast({
-          title: "보상 포인트 지급 완료!",
-          description: `${data.total_reward.toLocaleString()}포인트가 지급되었습니다. (${data.eligible_books.length}권의 도서)`,
-        });
-        
-        // Refresh user data to show updated wallet balance
-        fetchUserData();
-      } else {
-        toast({
-          title: "보상 대상 도서 없음",
-          description: data.message || "현재 보상 대상인 도서가 없습니다.",
-          variant: "default",
-        });
-      }
-
-    } catch (error: any) {
-      console.error('Reward calculation error:', error);
-      toast({
-        title: "보상 계산 실패",
-        description: error.message || "보상을 계산하는 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 

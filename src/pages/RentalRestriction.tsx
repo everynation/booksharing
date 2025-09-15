@@ -224,7 +224,6 @@ const RentalRestriction = () => {
                       </div>
                       
                       <div className="flex flex-col gap-2">
-                        <Clock className="h-6 w-6 text-warning mb-2" />
                         
                         {/* 채팅창 이동 버튼 */}
                         <Button

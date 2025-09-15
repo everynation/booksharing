@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, Clock, Book, X, Bell, MessageCircle } from "lucide-react";
+import { AlertTriangle, Clock, Book, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -32,10 +29,6 @@ const RentalRestriction = () => {
   const navigate = useNavigate();
   const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cancelingTransaction, setCancelingTransaction] = useState<string | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -113,64 +106,9 @@ const RentalRestriction = () => {
     }
   };
 
-  const handleCancelTransaction = async () => {
-    if (!user || !selectedTransactionId) return;
-
-    setCancelingTransaction(selectedTransactionId);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('cancel-transaction', {
-        body: {
-          transaction_id: selectedTransactionId,
-          reason: cancelReason || '사용자 요청으로 취소'
-        }
-      });
-
-      if (error || !data?.success) {
-        throw new Error(data?.error || error?.message || 'Unknown error');
-      }
-
-      toast({
-        title: "거래 취소 요청 완료",
-        description: data.message || "거래 취소 요청이 전송되었습니다.",
-      });
-
-      setShowCancelModal(false);
-      setCancelReason("");
-      setSelectedTransactionId(null);
-      
-      // Refresh transactions
-      fetchPendingTransactions();
-      
-    } catch (error: any) {
-      toast({
-        title: "취소 요청 실패",
-        description: error.message || "다시 시도해 주세요.",
-        variant: "destructive",
-      });
-    } finally {
-      setCancelingTransaction(null);
-    }
-  };
-
-  const handleNotifyOwner = async (transactionId: string) => {
-    if (!user) return;
-
-    try {
-      // This would typically send a notification to the book owner
-      // For now, we'll just show a success message
-      toast({
-        title: "알림 전송 완료",
-        description: "책 소유자에게 알림이 전송되었습니다.",
-      });
-      
-    } catch (error) {
-      toast({
-        title: "알림 전송 실패",
-        description: "다시 시도해 주세요.",
-        variant: "destructive",
-      });
-    }
+  const handleOpenChat = (transactionId: string) => {
+    // Navigate to chat page with transaction ID
+    navigate(`/chat/${transactionId}`);
   };
 
   const getDefaultCoverImage = () => {
@@ -288,76 +226,15 @@ const RentalRestriction = () => {
                       <div className="flex flex-col gap-2">
                         <Clock className="h-6 w-6 text-warning mb-2" />
                         
-                        {/* 거래 취소 버튼 */}
-                        <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedTransactionId(transaction.id)}
-                              className="w-full"
-                            >
-                              <X className="h-3 w-3 mr-1" />
-                              취소 요청
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[400px]">
-                            <DialogHeader>
-                              <DialogTitle className="flex items-center gap-2">
-                                <X className="h-5 w-5" />
-                                거래 취소 요청
-                              </DialogTitle>
-                              <DialogDescription>
-                                거래 취소 사유를 입력해주세요. 상대방에게 알림이 전송됩니다.
-                              </DialogDescription>
-                            </DialogHeader>
-                            
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="cancel-reason">취소 사유 (선택사항)</Label>
-                                <Textarea
-                                  id="cancel-reason"
-                                  placeholder="취소 사유를 입력해주세요..."
-                                  value={cancelReason}
-                                  onChange={(e) => setCancelReason(e.target.value)}
-                                  rows={3}
-                                />
-                              </div>
-
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  onClick={() => {
-                                    setShowCancelModal(false);
-                                    setCancelReason("");
-                                    setSelectedTransactionId(null);
-                                  }}
-                                  className="flex-1"
-                                >
-                                  취소
-                                </Button>
-                                <Button 
-                                  onClick={handleCancelTransaction}
-                                  disabled={cancelingTransaction === selectedTransactionId}
-                                  className="flex-1"
-                                  variant="destructive"
-                                >
-                                  {cancelingTransaction === selectedTransactionId ? "요청 중..." : "취소 요청"}
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-
-                        {/* 소유자 알림 버튼 */}
+                        {/* 채팅창 이동 버튼 */}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleNotifyOwner(transaction.id)}
+                          onClick={() => handleOpenChat(transaction.id)}
                           className="w-full"
                         >
-                          <Bell className="h-3 w-3 mr-1" />
-                          소유자 알림
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          채팅창 이동
                         </Button>
                       </div>
                     </div>

@@ -325,7 +325,6 @@ export const NotificationDropdown = () => {
           isOpen={!!selectedChat}
           onClose={() => setSelectedChat(null)}
           otherUserId={selectedChat.userId}
-          otherUserName={selectedChat.userName}
           bookTitle={selectedChat.bookTitle}
           bookId={selectedChat.bookId}
           transactionId={selectedChat.transactionId}

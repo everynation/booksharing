@@ -84,3 +84,10 @@ export function sanitizeChatMessage(message: string): string {
   
   return sanitized;
 }
+
+/**
+ * Generic input sanitization function
+ */
+export function sanitizeInput(input: string): string {
+  return sanitizeChatMessage(input);
+}

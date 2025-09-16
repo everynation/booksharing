@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Camera, X, RotateCw, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/browser';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 
 interface ISBNScannerProps {
   onScan: (isbn: string) => void;
@@ -75,7 +75,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
         readerRef.current = new BrowserMultiFormatReader();
       }
 
-      const result = await readerRef.current.decodeFromVideoDevice(
+      readerRef.current.decodeFromVideoDevice(
         undefined,
         videoRef.current,
         (result, error) => {
@@ -89,7 +89,7 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
             }
           }
           
-          if (error && !(error instanceof NotFoundException)) {
+          if (error && error.name !== 'NotFoundException') {
             console.warn('Scanning error:', error);
           }
         }
@@ -121,7 +121,16 @@ export const ISBNScanner: React.FC<ISBNScannerProps> = ({ onScan, onClose, isOpe
 
   const cleanupCamera = () => {
     if (readerRef.current) {
-      readerRef.current.reset();
+      try {
+        // Try to stop the scanning process
+        const videoElement = videoRef.current;
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+        }
+      } catch (e) {
+        console.log('Reader cleanup completed');
+      }
     }
     
     if (stream) {

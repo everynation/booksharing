@@ -34,6 +34,8 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
 
     const initializeMap = () => {
       try {
+        console.log("[LocationPickerMap] Initializing map with coordinates:", lat, lng);
+        
         const options = {
           center: new window.kakao.maps.LatLng(lat, lng),
           level: 3
@@ -81,20 +83,24 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
           onLocationChange(newLat, newLng);
         });
 
+        console.log("[LocationPickerMap] Map initialized successfully");
         setIsMapReady(true);
         setMapError(null);
       } catch (error) {
-        console.error('Failed to initialize map:', error);
-        setMapError('지도 초기화에 실패했습니다.');
+        console.error('[LocationPickerMap] Failed to initialize map:', error);
+        setMapError('지도 초기화에 실패했습니다. 페이지를 새로고침해주세요.');
+        setIsMapReady(false);
       }
     };
 
     if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
       initializeMap();
     } else {
+      console.log('[LocationPickerMap] Kakao maps not ready, ensuring loaded...');
       ensureLoaded()
         .then(() => {
           if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
+            console.log('[LocationPickerMap] Kakao maps loaded, initializing map...');
             initializeMap();
           } else {
             console.error('Kakao Maps not properly loaded after ensureLoaded');
@@ -102,7 +108,7 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
           }
         })
         .catch((error) => {
-          console.error('Failed to load Kakao Maps:', error);
+          console.error('[LocationPickerMap] Failed to load Kakao maps:', error);
           setMapError('지도 API 연결에 실패했습니다.');
         });
     }
@@ -120,24 +126,41 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
   if (!ready || error) {
     return (
       <div className={`flex items-center justify-center bg-muted rounded-lg ${className}`} style={{ height: '400px' }}>
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-3 p-4">
           {error ? (
             <>
-              <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center">
-                <span className="text-destructive">!</span>
+              <div className="h-12 w-12 rounded-full bg-destructive/20 flex items-center justify-center">
+                <span className="text-destructive text-xl">!</span>
               </div>
-              <p className="text-sm text-destructive text-center">{error}</p>
-              <button 
-                onClick={() => window.location.reload()} 
-                className="text-xs text-muted-foreground underline mt-2"
-              >
-                페이지 새로고침
-              </button>
+              <div className="text-center space-y-2">
+                <p className="text-sm font-medium text-destructive">지도 로딩 실패</p>
+                <p className="text-xs text-muted-foreground max-w-xs">{error}</p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    setMapError(null);
+                    ensureLoaded().catch(console.error);
+                  }} 
+                  className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                >
+                  다시 시도
+                </button>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="px-3 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80"
+                >
+                  새로고침
+                </button>
+              </div>
             </>
           ) : (
             <>
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">지도를 불러오는 중...</p>
+              <div className="text-center space-y-1">
+                <p className="text-sm text-muted-foreground">지도를 불러오는 중...</p>
+                <p className="text-xs text-muted-foreground">잠시만 기다려주세요</p>
+              </div>
             </>
           )}
         </div>
@@ -153,19 +176,52 @@ export const LocationPickerMap: React.FC<LocationPickerMapProps> = ({
         style={{ height: '400px' }}
       />
       {(!isMapReady || mapError) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/80 rounded-lg">
-          <div className="flex flex-col items-center gap-2">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+          <div className="flex flex-col items-center gap-3 p-4 bg-background/90 rounded-lg shadow-lg">
             {mapError ? (
               <>
-                <div className="h-6 w-6 rounded-full bg-destructive/20 flex items-center justify-center">
-                  <span className="text-destructive text-sm">!</span>
+                <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center">
+                  <span className="text-destructive text-lg">!</span>
                 </div>
-                <p className="text-sm text-destructive text-center">{mapError}</p>
+                <div className="text-center space-y-1">
+                  <p className="text-sm font-medium text-destructive">지도 초기화 실패</p>
+                  <p className="text-xs text-muted-foreground max-w-xs">{mapError}</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setMapError(null);
+                    setIsMapReady(false);
+                    // Re-trigger map initialization
+                    if (window.kakao && window.kakao.maps) {
+                      const initializeMap = () => {
+                        try {
+                          const options = {
+                            center: new window.kakao.maps.LatLng(lat, lng),
+                            level: 3
+                          };
+                          map.current = new window.kakao.maps.Map(mapContainer.current, options);
+                          setIsMapReady(true);
+                          setMapError(null);
+                        } catch (error) {
+                          console.error('Failed to reinitialize map:', error);
+                          setMapError('지도 초기화에 실패했습니다.');
+                        }
+                      };
+                      initializeMap();
+                    }
+                  }} 
+                  className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                >
+                  다시 시도
+                </button>
               </>
             ) : (
               <>
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">지도 초기화 중...</p>
+                <div className="text-center space-y-1">
+                  <p className="text-sm text-muted-foreground">지도 초기화 중...</p>
+                  <p className="text-xs text-muted-foreground">잠시만 기다려주세요</p>
+                </div>
               </>
             )}
           </div>

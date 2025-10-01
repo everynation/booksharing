@@ -50,15 +50,19 @@ const Features = () => (
     </View>
 
     <View style={styles.cardGrid}>
-      {features.map((feature) => (
-        <View key={feature.title} style={styles.card}>
-          <View style={[styles.iconWrapper, { backgroundColor: `${feature.color}1a` }]}> {/* 10% opacity */}
-            <Feather name={feature.icon} size={28} color={feature.color} />
+      {features.map((feature) => {
+        const iconBackgroundColor = `${feature.color}1a`;
+
+        return (
+          <View key={feature.title} style={styles.card}>
+            <View style={[styles.iconWrapper, { backgroundColor: iconBackgroundColor }]}>
+              <Feather name={feature.icon} size={28} color={feature.color} />
+            </View>
+            <Text style={styles.cardTitle}>{feature.title}</Text>
+            <Text style={styles.cardDescription}>{feature.description}</Text>
           </View>
-          <Text style={styles.cardTitle}>{feature.title}</Text>
-          <Text style={styles.cardDescription}>{feature.description}</Text>
-        </View>
-      ))}
+        );
+      })}
     </View>
   </View>
 );

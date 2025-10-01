@@ -33,7 +33,7 @@ const Testimonials = () => (
     <View style={styles.cardGrid}>
       {testimonials.map((testimonial) => (
         <View key={testimonial.name} style={styles.card}>
-          <Feather name="quote" size={26} color="#f97316" />
+          <Feather name="message-circle" size={26} color="#f97316" />
           <View style={styles.ratingRow}>
             {Array.from({ length: 5 }).map((_, index) => (
               <Feather key={index} name="star" size={16} color="#f97316" />

@@ -15,7 +15,7 @@ const steps = [
     step: "02",
   },
   {
-    icon: "handshake",
+    icon: "user-check",
     title: "거래하기",
     description: "원하는 책에 대여 또는 구매 요청을 하고 직접 만나서 거래하세요.",
     step: "03",

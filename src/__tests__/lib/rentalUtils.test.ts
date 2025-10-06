@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { checkUserCanBorrow } from '@/lib/rentalUtils';
 
-// Mock Supabase client (Temp)
+// Mock Supabase client (Temp22)
 const mockSupabaseFrom = vi.fn();
 const mockSupabaseSelect = vi.fn();
 const mockSupabaseEq = vi.fn();

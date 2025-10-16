@@ -9,8 +9,11 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { supabase } from "@mobile/lib/supabase";
 import { useAuth } from "@mobile/hooks/useAuth";
+import { RootStackParamList } from "@mobile/navigation/AppNavigator";
 
 interface BookRow {
   id: string;
@@ -21,6 +24,7 @@ interface BookRow {
 }
 
 const BooksScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const [books, setBooks] = useState<BookRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +34,9 @@ const BooksScreen = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("books")
-      .select("id, title, author, transaction_type, price")
-      .limit(25);
+      .select("id, title, author, transaction_type, price, cover_image_url, status")
+      .eq("status", "available")
+      .limit(50);
 
     if (error) {
       console.warn("📚 책 목록 로드 실패", error);
@@ -79,7 +84,10 @@ const BooksScreen = () => {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.bookCard}>
+            <TouchableOpacity 
+              style={styles.bookCard}
+              onPress={() => navigation.navigate("BookDetail", { bookId: item.id })}
+            >
               <View style={styles.cardHeader}>
                 <Text style={styles.bookTitle}>{item.title}</Text>
                 {item.transaction_type && (
